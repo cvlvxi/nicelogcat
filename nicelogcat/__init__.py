@@ -2,6 +2,7 @@ import sys, os, json, re
 import argparse
 import hashlib
 import json
+import time
 from colorama import init, Fore, Style, Back
 from datetime import datetime
 from collections import defaultdict
@@ -99,6 +100,9 @@ parser.add_argument(
 parser.add_argument(
     "--per-line", type=int, default=4, help="Keys per line"
 )
+parser.add_argument(
+    "--time-per-secs", type=int, default=0, help="Will time how many logs called every [internal] secs"
+)
 
 parser.add_argument(
     "--header-spacer",
@@ -141,7 +145,12 @@ FILTERS = []
 FILTER_OUT = []
 PER_LINE = -1
 KEY_COUNT = 1
+WILL_COUNT= False
+TIMING_SECONDS_INTERVAL = None
+COUNTED_LOGS = 0
 HEADER_SPACER = None
+t0 = time.time()
+t1 = None
 
 
 SPACER = " "
@@ -187,6 +196,10 @@ if args.header_spacer == "newline":
     HEADER_SPACER = '\n'
 else:
     HEADER_SPACER = ' ' * 4
+if args.time_per_secs > 0:
+    WILL_COUNT = True
+    TIMING_SECONDS_INTERVAL = args.time_per_secs
+    print("TIMING NUMBER OF LOGS PER: {} seconds".format(TIMING_SECONDS_INTERVAL))
 
 
 def norm_str(some_str):
@@ -368,6 +381,9 @@ def find_dict_in_v(v, rawline=None):
 def nice_print(args, fd, colors, rawline):
     global SUSPENDED
     global HEADER_SPACER
+    global t0
+    global t1
+    global COUNTED_LOGS
 
     V_COLOR = colors["V_COLOR"]
 
@@ -380,11 +396,6 @@ def nice_print(args, fd, colors, rawline):
     header_line_str = " ".join(header_line_vals) + " " * header_diff + HEADER_SPACER
     total_header_len = header_len + header_diff
     NESTED_SPACER = " "
-    # TOP_SPACER = (
-    #     "\n{}{}".format(HEADER_SPACER, " " * total_header_len)
-    #     if HEADER_SPACER == '\n'
-    #     else  " " * 4
-    # )
     TOP_SPACER = "\n{}{}".format(HEADER_SPACER, " " * total_header_len)
 
 
@@ -497,19 +508,27 @@ def nice_print(args, fd, colors, rawline):
             will_print = True
             print("Found suspend_util, will continue")
     if will_print:
+        if WILL_COUNT:
+            COUNTED_LOGS += 1
+            t1 = time.time()
+            if (t1-t0) >= TIMING_SECONDS_INTERVAL:
+                t0 = t1
+                print(style("Number of logs after {} seconds: {}".format(TIMING_SECONDS_INTERVAL, COUNTED_LOGS), color=colors['TIMING_COLOR']))
         if args.divider:
             print(DIVIDER)
         if FORCE_DISABLE_PRINT:
             return True
         # THE PRINT
         if args.title and args.show_title_every_line:
-            print("[{}]".format(args.title))
+            timing_title = "🕒 ({} secs) ".format(TIMING_SECONDS_INTERVAL) if WILL_COUNT else ""
+            print("[{}{}]".format(timing_title, args.title))
         print(header_line_str + result_str)
         return True
     return False
 
 
 def main_loop(args, colors):
+
     while True:
         line = next(INPUT)
         line = line.decode(errors="ignore")
@@ -519,6 +538,7 @@ def main_loop(args, colors):
         parts = [x for x in line.split(" ") if x]
         if parts[0] == "---------":
             continue
+
 
         date = norm_str3(parts[0])
         timestamp = norm_str3(parts[1])
@@ -561,6 +581,7 @@ def main():
         "K_COLOR": Fore.CYAN,
         "STACK_MSG_COLOR": Fore.GREEN,
         "PATH_COLOR": Fore.LIGHTMAGENTA_EX,
+        "TIMING_COLOR": Back.RED + Fore.BLACK, 
     }
     nice_title(args.title, colors)
     main_loop(args, colors)
