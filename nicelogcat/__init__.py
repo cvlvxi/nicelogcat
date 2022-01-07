@@ -514,6 +514,7 @@ def nice_print(args, fd, colors, rawline):
             if (t1-t0) >= TIMING_SECONDS_INTERVAL:
                 t0 = t1
                 print(style("Number of logs after {} seconds: {}".format(TIMING_SECONDS_INTERVAL, COUNTED_LOGS), color=colors['TIMING_COLOR']))
+                COUNTED_LOGS = 0
         if args.divider:
             print(DIVIDER)
         if FORCE_DISABLE_PRINT:
