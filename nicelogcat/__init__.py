@@ -8,7 +8,19 @@ from datetime import datetime
 from collections import defaultdict
 from prettytable import PrettyTable, FRAME
 
-FORCE_DISABLE_PRINT=False
+FORCE_DISABLE_PRINT = False
+
+COLOR_STRS = [
+    "BLACK",
+    "BLUE",
+    "CYAN",
+    "GREEN",
+    "MAGENTA",
+    "RED",
+    "WHITE",
+    "YELLOW",
+]
+
 
 FORE_COLORS = [
     Fore.BLACK,
@@ -67,13 +79,21 @@ parser.add_argument(
     "--linespace", type=int, default=0, help="Number of spaces between lines"
 )
 parser.add_argument("--divider", action="store_true", help="Add a divider per line")
-parser.add_argument("--title-in-header", action="store_true", help="Add title to header")
+parser.add_argument(
+    "--title-in-header", action="store_true", help="Add title to header"
+)
 parser.add_argument("--raw", action="store_true", help="Include raw line")
 parser.add_argument(
     "--keys", nargs="*", required=False, default=None, help="Highlight keys"
 )
 parser.add_argument(
     "--show-title-every-line", action="store_true", help="Show title every line"
+)
+parser.add_argument(
+    "--title-line-color",
+    default=Fore.BLUE,
+    choices=COLOR_STRS,
+    help="Color to use if showing title every line",
 )
 parser.add_argument(
     "--highlight",
@@ -84,6 +104,9 @@ parser.add_argument(
 )
 parser.add_argument(
     "--filters", nargs="*", default=None, type=str, help="List of filters"
+)
+parser.add_argument(
+    "--filter-all", action="store_true", help="Filters Must filter all otherwise any"
 )
 parser.add_argument(
     "--level", nargs="*", default=None, type=str, help="Only these levels"
@@ -97,11 +120,12 @@ parser.add_argument(
 parser.add_argument(
     "--ignore-keys", nargs="*", default=None, type=str, help="Ignore These Keys"
 )
+parser.add_argument("--per-line", type=int, default=4, help="Keys per line")
 parser.add_argument(
-    "--per-line", type=int, default=4, help="Keys per line"
-)
-parser.add_argument(
-    "--time-per-secs", type=int, default=0, help="Will time how many logs called every [internal] secs"
+    "--time-per-secs",
+    type=int,
+    default=0,
+    help="Will time how many logs called every [internal] secs",
 )
 
 parser.add_argument(
@@ -145,7 +169,7 @@ FILTERS = []
 FILTER_OUT = []
 PER_LINE = -1
 KEY_COUNT = 1
-WILL_COUNT= False
+WILL_COUNT = False
 TIMING_SECONDS_INTERVAL = None
 COUNTED_LOGS = 0
 HEADER_SPACER = None
@@ -193,9 +217,9 @@ if args.filterout:
     FILTER_OUT = args.filterout
     print("FILTER_OUT: {}".format([k for k in FILTER_OUT]))
 if args.header_spacer == "newline":
-    HEADER_SPACER = '\n'
+    HEADER_SPACER = "\n"
 else:
-    HEADER_SPACER = ' ' * 4
+    HEADER_SPACER = " " * 4
 if args.time_per_secs > 0:
     WILL_COUNT = True
     TIMING_SECONDS_INTERVAL = args.time_per_secs
@@ -333,12 +357,16 @@ def nested_dicts(some_dict, level=0):
     return new_dict
 
 
-def nice_print_dict(key_count, top_spacer, some_dict, key_color, value_color, spacer=SPACER):
+def nice_print_dict(
+    key_count, top_spacer, some_dict, key_color, value_color, spacer=SPACER
+):
     nice_str = ""
     nice_strings = []
     for k, v in some_dict.items():
         if isinstance(v, dict):
-            (new_key_count, nice_str) = nice_print_dict(key_count, top_spacer, v, key_color, value_color, spacer)
+            (new_key_count, nice_str) = nice_print_dict(
+                key_count, top_spacer, v, key_color, value_color, spacer
+            )
 
             nice_strings.append(nice_str)
             key_count = new_key_count
@@ -353,7 +381,9 @@ def nice_print_dict(key_count, top_spacer, some_dict, key_color, value_color, sp
                 else:
                     spacer = ""
             nice_strings.append(
-                spacer + SPACER +  "[{}: {}]".format(
+                spacer
+                + SPACER
+                + "[{}: {}]".format(
                     style(k, color=key_color), style(v, color=value_color)
                 )
             )
@@ -398,7 +428,6 @@ def nice_print(args, fd, colors, rawline):
     NESTED_SPACER = " "
     TOP_SPACER = "\n{}{}".format(HEADER_SPACER, " " * total_header_len)
 
-
     level_val = remove_col_from_val(fd["level"])
     prefix_val = remove_col_from_val(fd["prefix"])
 
@@ -441,13 +470,13 @@ def nice_print(args, fd, colors, rawline):
 
         if isinstance(v, dict):
             (new_key_count, nice_str) = nice_print_dict(
-                        key_count,
-                        TOP_SPACER,
-                        v,
-                        key_color=colors["K_COLOR"],
-                        value_color=colors["V_COLOR"],
-                        spacer=NESTED_SPACER,
-                    )
+                key_count,
+                TOP_SPACER,
+                v,
+                key_color=colors["K_COLOR"],
+                value_color=colors["V_COLOR"],
+                spacer=NESTED_SPACER,
+            )
             key_count = new_key_count
             string_list.append(
                 "{}:{}{}".format(
@@ -459,19 +488,17 @@ def nice_print(args, fd, colors, rawline):
         else:
             nested_d = find_dict_in_v(v, rawline)
             (new_key_count, nice_str) = nice_print_dict(
-                    key_count,
-                    TOP_SPACER,
-                    nested_d,
-                    key_color=colors["K_COLOR"],
-                    value_color=colors["V_COLOR"],
-                    spacer=SPACER,
-                )
+                key_count,
+                TOP_SPACER,
+                nested_d,
+                key_color=colors["K_COLOR"],
+                value_color=colors["V_COLOR"],
+                spacer=SPACER,
+            )
             key_count = new_key_count
             if nested_d:
                 if nice_str:
-                    string_list.append(
-                        nice_str
-                    )
+                    string_list.append(nice_str)
 
             else:
                 string_list.append(
@@ -496,7 +523,10 @@ def nice_print(args, fd, colors, rawline):
                     phrase, colors["HIGHLIGHT_COLOR"] + phrase  # + Style.RESET_ALL
                 )
     if FILTERS:
-        will_print = all([f in result_str_no_col for f in FILTERS])
+        if args.filter_all:
+            will_print = all([f.lower() in result_str_no_col.lower() for f in FILTERS])
+        else:
+            will_print = any([f.lower() in result_str_no_col.lower() for f in FILTERS])
     if FILTER_OUT:
         will_print = not any([f in result_str_no_col for f in FILTER_OUT])
     if SUSPENDED:
@@ -511,9 +541,16 @@ def nice_print(args, fd, colors, rawline):
         if WILL_COUNT:
             COUNTED_LOGS += 1
             t1 = time.time()
-            if (t1-t0) >= TIMING_SECONDS_INTERVAL:
+            if (t1 - t0) >= TIMING_SECONDS_INTERVAL:
                 t0 = t1
-                print(style("Number of logs after {} seconds: {}".format(TIMING_SECONDS_INTERVAL, COUNTED_LOGS), color=colors['TIMING_COLOR']))
+                print(
+                    style(
+                        "Number of logs after {} seconds: {}".format(
+                            TIMING_SECONDS_INTERVAL, COUNTED_LOGS
+                        ),
+                        color=colors["TIMING_COLOR"],
+                    )
+                )
                 COUNTED_LOGS = 0
         if args.divider:
             print(DIVIDER)
@@ -521,8 +558,15 @@ def nice_print(args, fd, colors, rawline):
             return True
         # THE PRINT
         if args.title and args.show_title_every_line:
-            timing_title = "🕒 ({} secs) ".format(TIMING_SECONDS_INTERVAL) if WILL_COUNT else ""
-            print("[{}{}]".format(timing_title, args.title))
+            timing_title = (
+                "🕒 ({} secs) ".format(TIMING_SECONDS_INTERVAL) if WILL_COUNT else ""
+            )
+            print(
+                style(
+                    "[{}{}]".format(timing_title, args.title),
+                    color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)] + Fore.BLACK
+                )
+            )
         print(header_line_str + result_str)
         return True
     return False
@@ -539,7 +583,6 @@ def main_loop(args, colors):
         parts = [x for x in line.split(" ") if x]
         if parts[0] == "---------":
             continue
-
 
         date = norm_str3(parts[0])
         timestamp = norm_str3(parts[1])
@@ -582,7 +625,7 @@ def main():
         "K_COLOR": Fore.CYAN,
         "STACK_MSG_COLOR": Fore.GREEN,
         "PATH_COLOR": Fore.LIGHTMAGENTA_EX,
-        "TIMING_COLOR": Back.RED + Fore.BLACK, 
+        "TIMING_COLOR": Back.RED + Fore.BLACK,
     }
     nice_title(args.title, colors)
     main_loop(args, colors)
