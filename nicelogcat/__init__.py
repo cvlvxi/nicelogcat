@@ -1,5 +1,6 @@
 import sys, os, json, re
 import argparse
+import argcomplete
 import hashlib
 import json
 import time
@@ -141,7 +142,7 @@ parser.add_argument(
     type=str,
     help="List of filters to filter out",
 )
-
+argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
 DIVIDER_SIZE = 60
