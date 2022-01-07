@@ -1,9 +1,13 @@
-import json
+import sys, os, json, re
 import argparse
 import hashlib
 import json
 from colorama import init, Fore, Style, Back
+from datetime import datetime
 from collections import defaultdict
+from prettytable import PrettyTable, FRAME
+
+FORCE_DISABLE_PRINT=False
 
 FORE_COLORS = [
     Fore.BLACK,
@@ -49,7 +53,9 @@ ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
 
 parser = argparse.ArgumentParser(description="Bleh")
 parser.add_argument("--title", default="", type=str, help="Title to show")
-parser.add_argument("--suspend-util", default=None, type=str, help="Suspend until this is found")
+parser.add_argument(
+    "--suspend-util", default=None, type=str, help="Suspend until this is found"
+)
 parser.add_argument(
     "--spacer",
     default="space",
@@ -60,9 +66,13 @@ parser.add_argument(
     "--linespace", type=int, default=0, help="Number of spaces between lines"
 )
 parser.add_argument("--divider", action="store_true", help="Add a divider per line")
+parser.add_argument("--title-in-header", action="store_true", help="Add title to header")
 parser.add_argument("--raw", action="store_true", help="Include raw line")
 parser.add_argument(
     "--keys", nargs="*", required=False, default=None, help="Highlight keys"
+)
+parser.add_argument(
+    "--show-title-every-line", action="store_true", help="Show title every line"
 )
 parser.add_argument(
     "--highlight",
@@ -82,6 +92,19 @@ parser.add_argument(
 )
 parser.add_argument(
     "--ignore-prefix", nargs="*", default=None, type=str, help="Ignore These Prefix"
+)
+parser.add_argument(
+    "--ignore-keys", nargs="*", default=None, type=str, help="Ignore These Keys"
+)
+parser.add_argument(
+    "--per-line", type=int, default=4, help="Keys per line"
+)
+
+parser.add_argument(
+    "--header-spacer",
+    default="space",
+    choices=["newline", "space"],
+    help="Heading spacer between log",
 )
 parser.add_argument(
     "--filterout",
@@ -108,6 +131,18 @@ SKIP_UNTIL_REPEAT = 25
 MAX_MEMOIZED_MESSAGES = 200
 MEMOIZED_MESSAGES = defaultdict(int)
 TIME_SEPARATOR = "\n"
+HIGHLIGHT_KEYS = []
+HIGHLIGHT_PHRASES = []
+IGNORE_KEYS = []
+PREFIXES = []
+IGNORE_PREFIXES = []
+LEVELS = []
+FILTERS = []
+FILTER_OUT = []
+PER_LINE = -1
+KEY_COUNT = 1
+HEADER_SPACER = None
+
 
 SPACER = " "
 if args.spacer == "newline":
@@ -120,6 +155,38 @@ elif args.spacer == "pipe":
     SPACER = " | "
 else:
     pass
+
+if args.per_line:
+    PER_LINE = args.per_line
+    print("PER_LINE: {}".format(PER_LINE))
+if args.keys:
+    HIGHLIGHT_KEYS = args.keys
+    print("HIGHLIGHT_KEYS: {}".format([k for k in HIGHLIGHT_KEYS]))
+if args.highlight:
+    HIGHLIGHT_PHRASES = args.highlight
+    print("HIGHLIGHT_PHRASES: {}".format([k for k in HIGHLIGHT_PHRASES]))
+if args.ignore_keys:
+    IGNORE_KEYS = args.ignore_keys
+    print("IGNORE_KEYS: {}".format([k for k in IGNORE_KEYS]))
+if args.prefix:
+    PREFIXES = args.prefix
+    print("PREFIXES: {}".format([k for k in PREFIXES]))
+if args.ignore_prefix:
+    IGNORE_PREFIXES = args.ignore_prefix
+    print("IGNORE_PREFIXES: {}".format([k for k in IGNORE_PREFIXES]))
+if args.level:
+    LEVELS = args.level
+    print("LEVELS: {}".format([k for k in LEVELS]))
+if args.filters:
+    FILTERS = args.filters
+    print("FILTERS: {}".format([k for k in FILTERS]))
+if args.filterout:
+    FILTER_OUT = args.filterout
+    print("FILTER_OUT: {}".format([k for k in FILTER_OUT]))
+if args.header_spacer == "newline":
+    HEADER_SPACER = '\n'
+else:
+    HEADER_SPACER = ' ' * 4
 
 
 def norm_str(some_str):
@@ -202,12 +269,14 @@ def get_log_level(log_level, colors):
     else:
         raise ValueError("Unknown log_level found: {}".format(log_level))
 
+
 def remove_col_from_val(val):
     new_val = val
     for col in ALL_COLORS:
         if col in val:
             new_val = new_val.replace(col, "")
     return new_val
+
 
 def style(val, min_len=None, color=None):
     if not val or not isinstance(val, str):
@@ -251,19 +320,34 @@ def nested_dicts(some_dict, level=0):
     return new_dict
 
 
-def nice_print_dict(some_dict, key_color, value_color, spacer=SPACER):
+def nice_print_dict(key_count, top_spacer, some_dict, key_color, value_color, spacer=SPACER):
     nice_str = ""
     nice_strings = []
     for k, v in some_dict.items():
         if isinstance(v, dict):
-            nice_strings.append(nice_print_dict(v, key_color, value_color, spacer))
+            (new_key_count, nice_str) = nice_print_dict(key_count, top_spacer, v, key_color, value_color, spacer)
+
+            nice_strings.append(nice_str)
+            key_count = new_key_count
         else:
+            if IGNORE_KEYS:
+                if k in IGNORE_KEYS:
+                    continue
+            spacer = ""
+            if PER_LINE != -1:
+                if key_count % PER_LINE == 0:
+                    spacer = top_spacer
+                else:
+                    spacer = ""
             nice_strings.append(
-                "[{}: {}]".format(style(k, color=key_color), style(v, color=value_color))
+                spacer + SPACER +  "[{}: {}]".format(
+                    style(k, color=key_color), style(v, color=value_color)
+                )
             )
+            key_count += 1
     if nice_strings:
-        nice_str = spacer.join(nice_strings)
-    return nice_str
+        nice_str = spacer.join([x for x in nice_strings if x])
+    return (key_count, nice_str)
 
 
 def find_dict_in_v(v, rawline=None):
@@ -283,28 +367,25 @@ def find_dict_in_v(v, rawline=None):
 
 def nice_print(args, fd, colors, rawline):
     global SUSPENDED
-    HIGHLIGHT_KEYS = args.keys if args.keys else []
-    HIGHLIGHT_PHRASES = args.highlight if args.highlight else []
-    FILTERS = args.filters if args.filters else []
-    PREFIXES = args.prefix if args.prefix else []
-    IGNORE_PREFIXES = args.ignore_prefix if args.ignore_prefix else []
-    LEVELS = args.level if args.level else []
-    FILTER_OUT = args.filterout if args.filterout else []
+    global HEADER_SPACER
+
     V_COLOR = colors["V_COLOR"]
-    NESTED_SPACER = "\n{}".format(" " * 4) if SPACER == '\n' else ' '
 
     headers = ["prefix", "level", "log_time"]
     header_line_vals = [fd[k].strip() for k in headers]
-    HEADER_SPACER = " "*2
     header_pure_val = [remove_col_from_val(x) for x in header_line_vals]
     header_len = len(" ".join(header_pure_val))
     header_space_max = 33
     header_diff = header_space_max - header_len
-    # header_line_vals = [style(x, color=Back.BLACK) for x in header_line_vals]
     header_line_str = " ".join(header_line_vals) + " " * header_diff + HEADER_SPACER
     total_header_len = header_len + header_diff
     NESTED_SPACER = " "
-    TOP_SPACER = "\n{}{}".format(HEADER_SPACER, " "*total_header_len)
+    # TOP_SPACER = (
+    #     "\n{}{}".format(HEADER_SPACER, " " * total_header_len)
+    #     if HEADER_SPACER == '\n'
+    #     else  " " * 4
+    # )
+    TOP_SPACER = "\n{}{}".format(HEADER_SPACER, " " * total_header_len)
 
 
     level_val = remove_col_from_val(fd["level"])
@@ -316,8 +397,6 @@ def nice_print(args, fd, colors, rawline):
         return False
     if args.ignore_prefix and any([prefix_val in x for x in IGNORE_PREFIXES]):
         return False
-
-
 
     string_list = []
 
@@ -333,9 +412,11 @@ def nice_print(args, fd, colors, rawline):
     meta_keys = sorted(meta_keys)
 
     for key in key_order + meta_keys:
+        key_count = 0
         k = key
         v = fd[key]
-
+        if IGNORE_KEYS and k in IGNORE_KEYS:
+            continue
         if not v:
             continue
         if not k:
@@ -344,35 +425,42 @@ def nice_print(args, fd, colors, rawline):
         if k in headers:
             continue
         k = norm_str(k)
+
         k = style(k, color=colors["K_COLOR"])
 
         if isinstance(v, dict):
-            # top_spacer = "\n" if SPACER == " " else ""
-            top_spacer = TOP_SPACER
-            string_list.append(
-                "{}{}:{}{}".format(
-                    top_spacer,
-                    k,
-                    NESTED_SPACER,
-                    nice_print_dict(
+            (new_key_count, nice_str) = nice_print_dict(
+                        key_count,
+                        TOP_SPACER,
                         v,
                         key_color=colors["K_COLOR"],
                         value_color=colors["V_COLOR"],
                         spacer=NESTED_SPACER,
-                    ),
+                    )
+            key_count = new_key_count
+            string_list.append(
+                "{}:{}{}".format(
+                    k,
+                    NESTED_SPACER,
+                    nice_str,
                 )
             )
         else:
             nested_d = find_dict_in_v(v, rawline)
-            if nested_d:
-                string_list.append(
-                    nice_print_dict(
-                        nested_d,
-                        key_color=colors["K_COLOR"],
-                        value_color=colors["V_COLOR"],
-                        spacer=SPACER,
-                    )
+            (new_key_count, nice_str) = nice_print_dict(
+                    key_count,
+                    TOP_SPACER,
+                    nested_d,
+                    key_color=colors["K_COLOR"],
+                    value_color=colors["V_COLOR"],
+                    spacer=SPACER,
                 )
+            key_count = new_key_count
+            if nested_d:
+                if nice_str:
+                    string_list.append(
+                        nice_str
+                    )
 
             else:
                 string_list.append(
@@ -387,30 +475,35 @@ def nice_print(args, fd, colors, rawline):
         )
 
     will_print = True
-    result_str = SPACER.join(string_list)
-
+    result_str = SPACER.join([x for x in string_list if x])
+    result_str_no_col = remove_col_from_val(result_str)
 
     if HIGHLIGHT_PHRASES:
         for phrase in set(HIGHLIGHT_PHRASES):
             if phrase in result_str:
                 result_str = result_str.replace(
-                    phrase, colors["HIGHLIGHT_COLOR"] + phrase #+ Style.RESET_ALL
+                    phrase, colors["HIGHLIGHT_COLOR"] + phrase  # + Style.RESET_ALL
                 )
     if FILTERS:
-        will_print = any([f in rawline for f in FILTERS])
+        will_print = all([f in result_str_no_col for f in FILTERS])
     if FILTER_OUT:
-        will_print = not any([f in rawline for f in FILTER_OUT])
+        will_print = not any([f in result_str_no_col for f in FILTER_OUT])
     if SUSPENDED:
         will_print = False
-        if not args.suspend_util: raise ValueError("Suspended by no suspend-util suppied")
-        if args.suspend_util in rawline:
+        if not args.suspend_util:
+            raise ValueError("Suspended by no suspend-util supplied")
+        if args.suspend_util in result_str_no_col:
             SUSPENDED = False
             will_print = True
             print("Found suspend_util, will continue")
-
     if will_print:
         if args.divider:
             print(DIVIDER)
+        if FORCE_DISABLE_PRINT:
+            return True
+        # THE PRINT
+        if args.title and args.show_title_every_line:
+            print("[{}]".format(args.title))
         print(header_line_str + result_str)
         return True
     return False
@@ -434,10 +527,12 @@ def main_loop(args, colors):
         prefix = norm_str3(parts[5]).strip()
         msg = norm_str3(" ".join(parts[6:]))
 
+        # current_time = datetime.now().strftime("%m-%d %H:%M:%S")
         log_time = style(date + " " + timestamp, color=colors["TIME_COLOR"], min_len=20)
         the_keys = ["level", "prefix", "log_time", "pid", "message"]
         the_values = [
             style(log_level, min_len=10),
+            # style(current_time, color=colors["CURRENT_TIME_COLOR"], min_len=20),
             style(prefix, color=colors["PREFIX_COLOR"], min_len=70),
             log_time,
             pid,
@@ -471,5 +566,5 @@ def main():
     main_loop(args, colors)
 
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
