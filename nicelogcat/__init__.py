@@ -145,6 +145,14 @@ parser.add_argument(
 )
 
 parser.add_argument("--record-dir", type=str, default=None, help="Record Directory")
+parser.add_argument(
+    "--record-keys",
+    nargs="*",
+    required=False,
+    default=None,
+    help="When recording, only record when these keys change",
+)
+
 
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
@@ -181,11 +189,13 @@ HEADER_SPACER = None
 t0 = time.time()
 t1 = None
 ALLOW_RECORD = True
-RECORD_KEY = keyboard.Key.f1
+RECORD_KEY = keyboard.Key.f12
 RECORD_DIR = None
 IS_RECORDING = False
 INIT_NOT_RECORDING_STATE = True
 RECORD_FILE_NAME = "0.log"
+RECORD_KEYS_DIFF = []
+PREV_RECORDED_STRING_DICT = {}
 
 SPACER = " "
 if args.spacer == "newline":
@@ -242,6 +252,14 @@ if ALLOW_RECORD:
         RECORD_DIR = args.record_dir
     if not os.path.exists(RECORD_DIR):
         raise ValueError(RECORD_DIR + " needs to exist")
+    if args.record_keys:
+        RECORD_KEYS_DIFF = args.record_keys
+        HIGHLIGHT_KEYS + RECORD_KEYS_DIFF
+        print(
+            "Will record only if the following keys change: {}".format(
+                ",".join(RECORD_KEYS_DIFF)
+            )
+        )
 
 
 def norm_str(some_str):
@@ -426,12 +444,24 @@ def find_dict_in_v(v, rawline=None):
         return {}
 
 
+def flatten_dict(d):
+    new_dict = {}
+    if isinstance(d, dict):
+        for k, v in d.items():
+            if isinstance(v, dict):
+                flatten_dict(v)
+            else:
+                new_dict[k] = v
+    return new_dict
+
+
 def nice_print(args, fd, colors, rawline):
     global SUSPENDED
     global HEADER_SPACER
     global t0
     global t1
     global COUNTED_LOGS
+    global PREV_RECORDED_STRING_DICT
 
     V_COLOR = colors["V_COLOR"]
 
@@ -469,6 +499,8 @@ def nice_print(args, fd, colors, rawline):
     key_order = sorted(key_order)
     meta_keys = sorted(meta_keys)
 
+    string_dict = {}
+
     for key in key_order + meta_keys:
         key_count = 0
         k = key
@@ -483,7 +515,7 @@ def nice_print(args, fd, colors, rawline):
         if k in headers:
             continue
         k = norm_str(k)
-
+        non_color_k = k
         k = style(k, color=colors["K_COLOR"])
 
         if isinstance(v, dict):
@@ -503,6 +535,11 @@ def nice_print(args, fd, colors, rawline):
                     nice_str,
                 )
             )
+            nested_d = find_dict_in_v(v, rawline)
+            if nested_d:
+                string_dict.update(flatten_dict(nested_d))
+            else:
+                string_dict[non_color_k] = v
         else:
             nested_d = find_dict_in_v(v, rawline)
             (new_key_count, nice_str) = nice_print_dict(
@@ -517,8 +554,10 @@ def nice_print(args, fd, colors, rawline):
             if nested_d:
                 if nice_str:
                     string_list.append(nice_str)
+                string_dict.update(flatten_dict(nested_d))
 
             else:
+                string_dict[non_color_k] = v
                 string_list.append(
                     "[{}: {}]".format(k, style(v, color=colors["V_COLOR"]))
                 )
@@ -533,6 +572,22 @@ def nice_print(args, fd, colors, rawline):
     will_print = True
     result_str = SPACER.join([x for x in string_list if x])
     result_str_no_col = remove_col_from_val(result_str)
+
+    string_dict = flatten_dict(string_dict)
+    available_keys = []
+    change_detected = False
+
+    if RECORD_KEYS_DIFF:
+        available_keys = [k for k in string_dict.keys()]
+        if not PREV_RECORDED_STRING_DICT:
+            PREV_RECORDED_STRING_DICT = string_dict
+        for key in RECORD_KEYS_DIFF:
+            if key in string_dict and key in PREV_RECORDED_STRING_DICT:
+                if string_dict[key] != PREV_RECORDED_STRING_DICT[key]:
+                    change_detected = True
+        # Update
+        for key in string_dict:
+            PREV_RECORDED_STRING_DICT[key] = string_dict[key]
 
     if HIGHLIGHT_PHRASES:
         for phrase in set(HIGHLIGHT_PHRASES):
@@ -590,13 +645,42 @@ def nice_print(args, fd, colors, rawline):
             header_line_str = "🔴" + " " + header_line_str
 
         # THE PRINT
-        THE_PRINT = divider_str + header_line_str + " " + result_str
+        THE_PRINT = divider_str + header_line_str + TOP_SPACER + " " + result_str
         print(THE_PRINT)
+
         # CAPTURE RECORDING TO FILE
+        if RECORD_KEYS_DIFF:
+            if available_keys:
+                print(
+                    TOP_SPACER
+                    + style(
+                        " Available keys: {}".format(", ".join(available_keys)),
+                        color=Fore.CYAN,
+                    ),
+                    file=sys.stderr,
+                )
+            print(
+                TOP_SPACER
+                + style(
+                    " Recording keys: {}".format(", ".join(RECORD_KEYS_DIFF)),
+                    color=Fore.CYAN,
+                ),
+                file=sys.stderr,
+            )
+            if change_detected:
+                print(
+                    TOP_SPACER
+                    + style("Detected change!", color=Back.GREEN + Fore.BLACK),
+                    file=sys.stderr,
+                )
         if ALLOW_RECORD and IS_RECORDING:
             record_file_path = os.path.join(RECORD_DIR, RECORD_FILE_NAME)
+            write_to_file = True
+            if RECORD_KEYS_DIFF:
+                write_to_file = change_detected
             with open(record_file_path, "a") as f:
-                f.write(THE_PRINT +  "\n")
+                if write_to_file:
+                    f.write(THE_PRINT + "\n")
 
         return True
     return False
@@ -647,18 +731,37 @@ def on_press(key):
     try:
         if key == RECORD_KEY:
             IS_RECORDING = not IS_RECORDING
+            if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
+                print(
+                    style("You've finished recording", color=Back.RED + Fore.BLACK),
+                    file=sys.stderr,
+                )
+                print(
+                    style(
+                        "Wrote file: {}".format(
+                            os.path.join(RECORD_DIR, RECORD_FILE_NAME)
+                        ),
+                        color=Back.RED + Fore.BLACK,
+                    ),
+                    file=sys.stderr,
+                )
             INIT_NOT_RECORDING_STATE = False
             if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
-                curr_files = [int(x.split(".log")[0]) for x in os.listdir(RECORD_DIR) if ".log" in x]
+                curr_files = [
+                    int(x.split(".log")[0])
+                    for x in os.listdir(RECORD_DIR)
+                    if ".log" in x
+                ]
                 curr_files = sorted(curr_files)
                 if not curr_files:
                     RECORD_FILE_NAME = "0.log"
                 else:
                     RECORD_FILE_NAME = "{}.log".format(curr_files[-1] + 1)
             if not INIT_NOT_RECORDING_STATE and IS_RECORDING:
-                print(style("You're recording! Say hi!", color=Back.GREEN + Fore.BLACK), file=sys.stderr)
-            if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
-                print(style("You've finished recording", color=Back.RED + Fore.BLACK), file=sys.stderr)
+                print(
+                    style("You're recording! Say hi!", color=Back.GREEN + Fore.BLACK),
+                    file=sys.stderr,
+                )
     except AttributeError:
         pass
 
