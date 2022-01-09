@@ -1,151 +1,22 @@
 import sys, os, json, re
-import argparse
-import argcomplete
 import hashlib
 import json
 import time
+from args import args
 from colorama import init, Fore, Style, Back
 from datetime import datetime
 from collections import defaultdict
 from prettytable import PrettyTable, FRAME
+from constants import COLOR_STRS, FORE_COLORS, BACK_COLORS
 
 FORCE_DISABLE_PRINT = False
-
-COLOR_STRS = [
-    "BLACK",
-    "BLUE",
-    "CYAN",
-    "GREEN",
-    "MAGENTA",
-    "RED",
-    "WHITE",
-    "YELLOW",
-]
-
-
-FORE_COLORS = [
-    Fore.BLACK,
-    Fore.BLUE,
-    Fore.CYAN,
-    Fore.GREEN,
-    Fore.MAGENTA,
-    Fore.RED,
-    Fore.WHITE,
-    Fore.YELLOW,
-    Fore.LIGHTBLACK_EX,
-    Fore.LIGHTBLUE_EX,
-    Fore.LIGHTCYAN_EX,
-    Fore.LIGHTGREEN_EX,
-    Fore.LIGHTMAGENTA_EX,
-    Fore.LIGHTRED_EX,
-    Fore.LIGHTWHITE_EX,
-    Fore.LIGHTYELLOW_EX,
-]
-
-BACK_COLORS = [
-    Back.BLACK,
-    Back.BLUE,
-    Back.CYAN,
-    Back.GREEN,
-    Back.MAGENTA,
-    Back.RED,
-    Back.WHITE,
-    Back.YELLOW,
-    Back.LIGHTBLACK_EX,
-    Back.LIGHTBLUE_EX,
-    Back.LIGHTCYAN_EX,
-    Back.LIGHTGREEN_EX,
-    Back.LIGHTMAGENTA_EX,
-    Back.LIGHTRED_EX,
-    Back.LIGHTWHITE_EX,
-    Back.LIGHTYELLOW_EX,
-]
 
 COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
 
 ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
 
-parser = argparse.ArgumentParser(description="Bleh")
-parser.add_argument("--title", default="", type=str, help="Title to show")
-parser.add_argument(
-    "--suspend-util", default=None, type=str, help="Suspend until this is found"
-)
-parser.add_argument(
-    "--spacer",
-    default="space",
-    choices=["newline", "space", "tab", "pipe"],
-    help="spacer to use",
-)
-parser.add_argument(
-    "--linespace", type=int, default=0, help="Number of spaces between lines"
-)
-parser.add_argument("--divider", action="store_true", help="Add a divider per line")
-parser.add_argument(
-    "--title-in-header", action="store_true", help="Add title to header"
-)
-parser.add_argument("--raw", action="store_true", help="Include raw line")
-parser.add_argument(
-    "--keys", nargs="*", required=False, default=None, help="Highlight keys"
-)
-parser.add_argument(
-    "--show-title-every-line", action="store_true", help="Show title every line"
-)
-parser.add_argument(
-    "--title-line-color",
-    default=Fore.BLUE,
-    choices=COLOR_STRS,
-    help="Color to use if showing title every line",
-)
-parser.add_argument(
-    "--highlight",
-    nargs="*",
-    required=False,
-    default=None,
-    help="Highlight these phrase",
-)
-parser.add_argument(
-    "--filters", nargs="*", default=None, type=str, help="List of filters"
-)
-parser.add_argument(
-    "--filter-all", action="store_true", help="Filters Must filter all otherwise any"
-)
-parser.add_argument(
-    "--level", nargs="*", default=None, type=str, help="Only these levels"
-)
-parser.add_argument(
-    "--prefix", nargs="*", default=None, type=str, help="Only these Prefix"
-)
-parser.add_argument(
-    "--ignore-prefix", nargs="*", default=None, type=str, help="Ignore These Prefix"
-)
-parser.add_argument(
-    "--ignore-keys", nargs="*", default=None, type=str, help="Ignore These Keys"
-)
-parser.add_argument("--per-line", type=int, default=4, help="Keys per line")
-parser.add_argument(
-    "--time-per-secs",
-    type=int,
-    default=0,
-    help="Will time how many logs called every [internal] secs",
-)
 
-parser.add_argument(
-    "--header-spacer",
-    default="space",
-    choices=["newline", "space"],
-    help="Heading spacer between log",
-)
-parser.add_argument(
-    "--filterout",
-    nargs="*",
-    default=None,
-    type=str,
-    help="List of filters to filter out",
-)
-argcomplete.autocomplete(parser)
-args = parser.parse_args()
-
-DIVIDER_SIZE = 60
+DIVIDER_SIZE = 170
 
 init(autoreset=True)
 SUSPENDED = True if args.suspend_util else False
@@ -521,7 +392,7 @@ def nice_print(args, fd, colors, rawline):
         for phrase in set(HIGHLIGHT_PHRASES):
             if phrase in result_str:
                 result_str = result_str.replace(
-                    phrase, colors["HIGHLIGHT_COLOR"] + phrase  # + Style.RESET_ALL
+                    phrase, style(phrase, color=colors["HIGHLIGHT_COLOR"])
                 )
     if FILTERS:
         if args.filter_all:
@@ -554,7 +425,10 @@ def nice_print(args, fd, colors, rawline):
                 )
                 COUNTED_LOGS = 0
         if args.divider:
-            print(DIVIDER)
+            print(style(DIVIDER, color=colors["DIVIDER_STYLE"]))
+            if args.linespace > 0:
+                print()
+
         if FORCE_DISABLE_PRINT:
             return True
         # THE PRINT
@@ -565,10 +439,11 @@ def nice_print(args, fd, colors, rawline):
             print(
                 style(
                     "[{}{}]".format(timing_title, args.title),
-                    color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)] + Fore.BLACK
+                    color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)]
+                    + Fore.BLACK,
                 )
             )
-        print(header_line_str + result_str)
+        print(header_line_str + " " + result_str)
         return True
     return False
 
@@ -621,12 +496,13 @@ def main():
         "CURRENT_TIME_COLOR": Fore.RED,
         "PREFIX_COLOR": Fore.GREEN,
         "TITLE_COLOR": Fore.MAGENTA,
-        "HIGHLIGHT_COLOR": Back.BLACK + Fore.GREEN,
+        "HIGHLIGHT_COLOR": Fore.BLACK + Back.GREEN,
         "V_COLOR": Fore.WHITE,
         "K_COLOR": Fore.CYAN,
         "STACK_MSG_COLOR": Fore.GREEN,
         "PATH_COLOR": Fore.LIGHTMAGENTA_EX,
         "TIMING_COLOR": Back.RED + Fore.BLACK,
+        "DIVIDER_STYLE": Fore.CYAN,
     }
     nice_title(args.title, colors)
     main_loop(args, colors)
