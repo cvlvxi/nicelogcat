@@ -1,15 +1,7 @@
-from colorama import Fore, Back
+from colorama import Fore, Back, Style
 
-COLOR_STRS = [
-    "BLACK",
-    "BLUE",
-    "CYAN",
-    "GREEN",
-    "MAGENTA",
-    "RED",
-    "WHITE",
-    "YELLOW",
-]
+FORCE_DISABLE_PRINT = False
+
 
 FORE_COLORS = [
     Fore.BLACK,
@@ -30,6 +22,7 @@ FORE_COLORS = [
     Fore.LIGHTYELLOW_EX,
 ]
 
+
 BACK_COLORS = [
     Back.BLACK,
     Back.BLUE,
@@ -48,3 +41,19 @@ BACK_COLORS = [
     Back.LIGHTWHITE_EX,
     Back.LIGHTYELLOW_EX,
 ]
+
+COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
+
+ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
+
+COLOR_STRS = [
+    "BLACK",
+    "BLUE",
+    "CYAN",
+    "GREEN",
+    "MAGENTA",
+    "RED",
+    "WHITE",
+    "YELLOW",
+]
+

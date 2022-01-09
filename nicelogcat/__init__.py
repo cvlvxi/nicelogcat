@@ -7,16 +7,11 @@ from colorama import init, Fore, Style, Back
 from datetime import datetime
 from collections import defaultdict
 from prettytable import PrettyTable, FRAME
-from constants import COLOR_STRS, FORE_COLORS, BACK_COLORS
-
-FORCE_DISABLE_PRINT = False
-
-COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
-
-ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
+from constants import *
+from utils import *
 
 
-DIVIDER_SIZE = 170
+DIVIDER_SIZE = 140
 
 init(autoreset=True)
 SUSPENDED = True if args.suspend_util else False
@@ -47,6 +42,8 @@ COUNTED_LOGS = 0
 HEADER_SPACER = None
 t0 = time.time()
 t1 = None
+ALLOW_RECORDING = False
+RECORD_KEY = "r"
 
 
 SPACER = " "
@@ -96,53 +93,11 @@ if args.time_per_secs > 0:
     WILL_COUNT = True
     TIMING_SECONDS_INTERVAL = args.time_per_secs
     print("TIMING NUMBER OF LOGS PER: {} seconds".format(TIMING_SECONDS_INTERVAL))
+if args.record_logs:
+    ALLOW_RECORDING = True
+    print("Recording enabled. Press key: R and again to stop")
 
 
-def norm_str(some_str):
-    some_str = some_str.strip()
-    some_str = some_str.replace('"', "")
-    some_str = some_str.replace("'", "")
-    some_str = some_str.replace("\\", "")
-    return some_str
-
-
-def norm_str2(some_str):
-    some_str = some_str.replace("\\n", "\n")
-    some_str = some_str.replace("\\", "")
-    some_str = some_str.replace('""', '"')
-    some_str = some_str.replace("''", "'")
-    some_str = some_str.replace('":"', '": "')
-    return some_str
-
-
-def norm_str3(some_str):
-    some_str = some_str.strip()
-    if not some_str:
-        return ""
-    bad_chars = ":\\/\\'\""
-    if some_str[0] in bad_chars:
-        some_str = some_str[1:]
-    if len(some_str) > 1 and some_str[-1] in bad_chars:
-        some_str = some_str[0:-1]
-    return some_str
-
-
-def memoize(v, colors):
-    global MEMOIZED_MESSAGES
-    if len(MEMOIZED_MESSAGES) == MAX_MEMOIZED_MESSAGES:
-        print(colors["HIGHLIGHT_COLOR"] + "=" * 50)
-        print("Clearing Memozied Messages")
-        print(colors["HIGHLIGHT_COLOR"] + "=" * 50)
-        MEMOIZED_MESSAGES = defaultdict(int)
-    v_hash = hashlib.md5(v.encode()).hexdigest()
-    if v_hash not in MEMOIZED_MESSAGES.keys():
-        MEMOIZED_MESSAGES[v_hash] += 1
-        return (True, 0)
-    MEMOIZED_MESSAGES[v_hash] += 1
-    curr_count = MEMOIZED_MESSAGES[v_hash]
-    if MEMOIZED_MESSAGES[v_hash] % SKIP_UNTIL_REPEAT == 0:
-        return (True, curr_count)
-    return (False, -1)
 
 
 def nice_title(title, colors):
@@ -179,56 +134,6 @@ def get_log_level(log_level, colors):
         raise ValueError("Unknown log_level found: {}".format(log_level))
 
 
-def remove_col_from_val(val):
-    new_val = val
-    for col in ALL_COLORS:
-        if col in val:
-            new_val = new_val.replace(col, "")
-    return new_val
-
-
-def style(val, min_len=None, color=None):
-    if not val or not isinstance(val, str):
-        return val
-    new_val = remove_col_from_val(val)
-    new_val_len = len(new_val)
-    spacer = " "
-    if min_len:
-        if new_val_len < min_len:
-            new_val = val + spacer * (min_len - new_val_len)
-        else:
-            raise ValueError(
-                "orig_val: {} new_val: {} has length: {} which is bigger than {}".format(
-                    val, new_val, new_val_len, min_len
-                )
-            )
-    if color:
-        val = color + val + Style.RESET_ALL
-    return val
-
-
-def nested_dicts(some_dict, level=0):
-    new_dict = {}
-    for k, v in some_dict.items():
-        value = None
-        try:
-            value = json.loads(v)
-        except:
-            value = v
-        if not isinstance(value, dict):
-            new_dict[k] = v
-            continue
-        for subk, subv in value.items():
-            if isinstance(subv, dict):
-                new_dict[subk] = nested_dicts(subv, level=level + 1)
-            else:
-                if subk in new_dict.keys():
-                    continue
-                    # subk = f"{subk}_{level}"
-                new_dict[subk] = subv
-    return new_dict
-
-
 def nice_print_dict(
     key_count, top_spacer, some_dict, key_color, value_color, spacer=SPACER
 ):
@@ -263,21 +168,6 @@ def nice_print_dict(
     if nice_strings:
         nice_str = spacer.join([x for x in nice_strings if x])
     return (key_count, nice_str)
-
-
-def find_dict_in_v(v, rawline=None):
-    if "{" in v and "}" in v:
-        first_bracket_idx = v.find("{")
-        last_bracket_idx = v.rfind("}")
-        json_str = v[first_bracket_idx : last_bracket_idx + 1]
-        try:
-            val = json.loads(json_str)
-            return val
-        except Exception as e:
-            return {}
-
-    else:
-        return {}
 
 
 def nice_print(args, fd, colors, rawline):
@@ -484,7 +374,6 @@ def main_loop(args, colors):
         if printed:
             for i in range(args.linespace):
                 print()
-
 
 def main():
     colors = {

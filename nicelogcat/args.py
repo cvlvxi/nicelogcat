@@ -1,4 +1,5 @@
 import argparse
+import sys
 import argcomplete
 from constants import COLOR_STRS
 from colorama import Fore
@@ -80,5 +81,10 @@ parser.add_argument(
     type=str,
     help="List of filters to filter out",
 )
+
+parser.add_argument(
+    "--record-logs", action="store_true", help="Allow recording based on key event"
+)
+
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
