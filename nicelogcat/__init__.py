@@ -8,6 +8,7 @@ from pynput import keyboard
 from colorama import init, Fore, Style, Back
 from datetime import datetime
 from collections import defaultdict
+from functools import reduce
 from prettytable import PrettyTable, FRAME
 
 FORCE_DISABLE_PRINT = False
@@ -66,6 +67,12 @@ COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
 
 ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
 
+def flatten_list(l):
+    unique = set([x for x in reduce(lambda x, y: x+y, l) if x])
+
+    return list(unique)
+
+
 parser = argparse.ArgumentParser(description="Bleh")
 parser.add_argument("--title", default="", type=str, help="Title to show")
 parser.add_argument(
@@ -86,9 +93,6 @@ parser.add_argument(
 )
 parser.add_argument("--raw", action="store_true", help="Include raw line")
 parser.add_argument(
-    "--keys", nargs="*", required=False, default=None, help="Highlight keys"
-)
-parser.add_argument(
     "--show-title-every-line", action="store_true", help="Show title every line"
 )
 parser.add_argument(
@@ -96,31 +100,6 @@ parser.add_argument(
     default=Fore.BLUE,
     choices=COLOR_STRS,
     help="Color to use if showing title every line",
-)
-parser.add_argument(
-    "--highlight",
-    nargs="*",
-    required=False,
-    default=None,
-    help="Highlight these phrase",
-)
-parser.add_argument(
-    "--filters", nargs="*", default=None, type=str, help="List of filters"
-)
-parser.add_argument(
-    "--filter-all", action="store_true", help="Filters Must filter all otherwise any"
-)
-parser.add_argument(
-    "--level", nargs="*", default=None, type=str, help="Only these levels"
-)
-parser.add_argument(
-    "--prefix", nargs="*", default=None, type=str, help="Only these Prefix"
-)
-parser.add_argument(
-    "--ignore-prefix", nargs="*", default=None, type=str, help="Ignore These Prefix"
-)
-parser.add_argument(
-    "--ignore-keys", nargs="*", default=None, type=str, help="Ignore These Keys"
 )
 parser.add_argument("--per-line", type=int, default=4, help="Keys per line")
 parser.add_argument(
@@ -138,19 +117,49 @@ parser.add_argument(
 )
 parser.add_argument(
     "--filterout",
+    action="append",
     nargs="*",
     default=None,
     type=str,
     help="List of filters to filter out",
 )
-
+parser.add_argument(
+    "--keys", action="append", nargs="*", required=False, default=None, help="Highlight keys"
+)
+parser.add_argument(
+    "--highlight",
+    nargs="*",
+    action="append",
+    required=False,
+    default=None,
+    help="Highlight these phrase",
+)
 parser.add_argument("--record-dir", type=str, default=None, help="Record Directory")
 parser.add_argument(
     "--record-keys",
+    action="append",
     nargs="*",
     required=False,
     default=None,
     help="When recording, only record when these keys change",
+)
+parser.add_argument(
+    "--filters", action="append", nargs="*", default=None, type=str, help="List of filters"
+)
+parser.add_argument(
+    "--filter-all", action="store_true", help="Filters Must filter all otherwise any"
+)
+parser.add_argument(
+    "--level", action="append", nargs="*", default=None, type=str, help="Only these levels"
+)
+parser.add_argument(
+    "--prefix", action="append", nargs="*", default=None, type=str, help="Only these Prefix"
+)
+parser.add_argument(
+    "--ignore-prefix", action="append", nargs="*", default=None, type=str, help="Ignore These Prefix"
+)
+parser.add_argument(
+    "--ignore-keys", action="append", nargs="*", default=None, type=str, help="Ignore These Keys"
 )
 
 
@@ -213,28 +222,28 @@ if args.per_line:
     PER_LINE = args.per_line
     print("PER_LINE: {}".format(PER_LINE))
 if args.keys:
-    HIGHLIGHT_KEYS = args.keys
+    HIGHLIGHT_KEYS = flatten_list(args.keys)
     print("HIGHLIGHT_KEYS: {}".format([k for k in HIGHLIGHT_KEYS]))
 if args.highlight:
-    HIGHLIGHT_PHRASES = args.highlight
+    HIGHLIGHT_PHRASES = flatten_list(args.highlight)
     print("HIGHLIGHT_PHRASES: {}".format([k for k in HIGHLIGHT_PHRASES]))
 if args.ignore_keys:
-    IGNORE_KEYS = args.ignore_keys
+    IGNORE_KEYS = flatten_list(args.ignore_keys)
     print("IGNORE_KEYS: {}".format([k for k in IGNORE_KEYS]))
 if args.prefix:
-    PREFIXES = args.prefix
+    PREFIXES = flatten_list(args.prefix)
     print("PREFIXES: {}".format([k for k in PREFIXES]))
 if args.ignore_prefix:
-    IGNORE_PREFIXES = args.ignore_prefix
+    IGNORE_PREFIXES = flatten_list(args.ignore_prefix)
     print("IGNORE_PREFIXES: {}".format([k for k in IGNORE_PREFIXES]))
 if args.level:
-    LEVELS = args.level
+    LEVELS = flatten_list(args.level)
     print("LEVELS: {}".format([k for k in LEVELS]))
 if args.filters:
-    FILTERS = args.filters
+    FILTERS = flatten_list(args.filters)
     print("FILTERS: {}".format([k for k in FILTERS]))
 if args.filterout:
-    FILTER_OUT = args.filterout
+    FILTER_OUT = flatten_list(args.filterout)
     print("FILTER_OUT: {}".format([k for k in FILTER_OUT]))
 if args.header_spacer == "newline":
     HEADER_SPACER = "\n"
@@ -253,7 +262,7 @@ if ALLOW_RECORD:
     if not os.path.exists(RECORD_DIR):
         raise ValueError(RECORD_DIR + " needs to exist")
     if args.record_keys:
-        RECORD_KEYS_DIFF = args.record_keys
+        RECORD_KEYS_DIFF = flatten_list(args.record_keys)
         HIGHLIGHT_KEYS + RECORD_KEYS_DIFF
         print(
             "Will record only if the following keys change: {}".format(
@@ -442,6 +451,7 @@ def find_dict_in_v(v, rawline=None):
 
     else:
         return {}
+
 
 
 def flatten_dict(d):
