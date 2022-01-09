@@ -143,9 +143,7 @@ parser.add_argument(
     type=str,
     help="List of filters to filter out",
 )
-parser.add_argument(
-    "--record", action="store_true", help="Enable recording via keypress"
-)
+
 parser.add_argument("--record-dir", type=str, default=None, help="Record Directory")
 
 argcomplete.autocomplete(parser)
@@ -182,7 +180,7 @@ COUNTED_LOGS = 0
 HEADER_SPACER = None
 t0 = time.time()
 t1 = None
-ALLOW_RECORD = False
+ALLOW_RECORD = True
 RECORD_KEY = keyboard.Key.f1
 RECORD_DIR = None
 IS_RECORDING = False
@@ -236,8 +234,7 @@ if args.time_per_secs > 0:
     WILL_COUNT = True
     TIMING_SECONDS_INTERVAL = args.time_per_secs
     print("TIMING NUMBER OF LOGS PER: {} seconds".format(TIMING_SECONDS_INTERVAL))
-if args.record:
-    ALLOW_RECORD = True
+if ALLOW_RECORD:
     print("Recording enabled. Use {} to trigger record start/stop".format(RECORD_KEY))
     if not args.record_dir:
         RECORD_DIR = os.getcwd()
@@ -587,16 +584,16 @@ def nice_print(args, fd, colors, rawline):
                 color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)] + Fore.BLACK,
             )
             header_line_str = title_str + "\n" + header_line_str
-        if args.record and IS_RECORDING:
+        if ALLOW_RECORD and IS_RECORDING:
             header_line_str = "🟢" + " " + header_line_str
-        if args.record and not IS_RECORDING:
+        if ALLOW_RECORD and not IS_RECORDING:
             header_line_str = "🔴" + " " + header_line_str
 
         # THE PRINT
         THE_PRINT = divider_str + header_line_str + " " + result_str
         print(THE_PRINT)
         # CAPTURE RECORDING TO FILE
-        if args.record and IS_RECORDING:
+        if ALLOW_RECORD and IS_RECORDING:
             record_file_path = os.path.join(RECORD_DIR, RECORD_FILE_NAME)
             with open(record_file_path, "a") as f:
                 f.write(THE_PRINT +  "\n")
@@ -658,6 +655,10 @@ def on_press(key):
                     RECORD_FILE_NAME = "0.log"
                 else:
                     RECORD_FILE_NAME = "{}.log".format(curr_files[-1] + 1)
+            if not INIT_NOT_RECORDING_STATE and IS_RECORDING:
+                print(style("You're recording! Say hi!", color=Back.GREEN + Fore.BLACK), file=sys.stderr)
+            if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
+                print(style("You've finished recording", color=Back.RED + Fore.BLACK), file=sys.stderr)
     except AttributeError:
         pass
 
