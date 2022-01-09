@@ -4,6 +4,7 @@ import argcomplete
 import hashlib
 import json
 import time
+from pynput import keyboard
 from colorama import init, Fore, Style, Back
 from datetime import datetime
 from collections import defaultdict
@@ -142,6 +143,11 @@ parser.add_argument(
     type=str,
     help="List of filters to filter out",
 )
+parser.add_argument(
+    "--record", action="store_true", help="Enable recording via keypress"
+)
+parser.add_argument("--record-dir", type=str, default=None, help="Record Directory")
+
 argcomplete.autocomplete(parser)
 args = parser.parse_args()
 
@@ -176,7 +182,10 @@ COUNTED_LOGS = 0
 HEADER_SPACER = None
 t0 = time.time()
 t1 = None
-
+ALLOW_RECORD = False
+RECORD_KEY = keyboard.Key.f1
+RECORD_DIR = None
+IS_RECORDING = False
 
 SPACER = " "
 if args.spacer == "newline":
@@ -225,6 +234,14 @@ if args.time_per_secs > 0:
     WILL_COUNT = True
     TIMING_SECONDS_INTERVAL = args.time_per_secs
     print("TIMING NUMBER OF LOGS PER: {} seconds".format(TIMING_SECONDS_INTERVAL))
+if args.record:
+    ALLOW_RECORD = True
+    print("Recording enabled. Use {} to trigger record start/stop".format(RECORD_KEY))
+    if not args.record_dir:
+        raise ValueError("Required, need to specify --record-dir [directory]")
+    RECORD_DIR = args.record_dir
+    if not os.path.exists(RECORD_DIR):
+        raise ValueError(RECORD_DIR + " needs to exist")
 
 
 def norm_str(some_str):
@@ -553,22 +570,35 @@ def nice_print(args, fd, colors, rawline):
                     )
                 )
                 COUNTED_LOGS = 0
+        divider_str = ""
         if args.divider:
-            print(DIVIDER)
+            divider_str = DIViDER
         if FORCE_DISABLE_PRINT:
             return True
-        # THE PRINT
         if args.title and args.show_title_every_line:
             timing_title = (
                 "🕒 ({} secs) ".format(TIMING_SECONDS_INTERVAL) if WILL_COUNT else ""
             )
-            print(
-                style(
-                    "[{}{}]".format(timing_title, args.title),
-                    color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)] + Fore.BLACK
-                )
+            title_str = style(
+                "[{}{}]".format(timing_title, args.title),
+                color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)] + Fore.BLACK,
             )
-        print(header_line_str + result_str)
+            header_line_str = title_str + "\n" + header_line_str
+        if args.record and IS_RECORDING:
+            header_line_str = "🟢" + " " + header_line_str
+        if args.record and not IS_RECORDING:
+            header_line_str = "🔴" + " " + header_line_str
+
+        # THE PRINT
+        THE_PRINT = divider_str + header_line_str + " " + result_str
+        print(THE_PRINT)
+        # CAPTURE RECORDING TO FILE
+        if args.record and IS_RECORDING:
+            record_file_path = os.path.join(RECORD_DIR, "myrecord")
+            view_cmd_path = os.path.join(RECORD_DIR, "viewcmd")
+            with open(record_file_path, "a") as f:
+                f.write(THE_PRINT +  "\n")
+
         return True
     return False
 
@@ -611,6 +641,15 @@ def main_loop(args, colors):
                 print()
 
 
+def on_press(key):
+    global IS_RECORDING
+    try:
+        if key == RECORD_KEY:
+            IS_RECORDING = not IS_RECORDING
+    except AttributeError:
+        pass
+
+
 def main():
     colors = {
         "HEADER_STR_COLOR": Back.YELLOW + Fore.BLACK,
@@ -629,7 +668,15 @@ def main():
         "TIMING_COLOR": Back.RED + Fore.BLACK,
     }
     nice_title(args.title, colors)
-    main_loop(args, colors)
+    if ALLOW_RECORD:
+        with keyboard.Listener(on_press=on_press) as listener:
+            try:
+                main_loop(args, colors)
+                listener.join()
+            except MyException as e:
+                print("{0} was pressed".format(e.args[0]))
+    else:
+        main_loop(args, colors)
 
 
 if __name__ == "__main__":
