@@ -186,6 +186,8 @@ ALLOW_RECORD = False
 RECORD_KEY = keyboard.Key.f1
 RECORD_DIR = None
 IS_RECORDING = False
+INIT_NOT_RECORDING_STATE = True
+RECORD_FILE_NAME = "0.log"
 
 SPACER = " "
 if args.spacer == "newline":
@@ -238,8 +240,9 @@ if args.record:
     ALLOW_RECORD = True
     print("Recording enabled. Use {} to trigger record start/stop".format(RECORD_KEY))
     if not args.record_dir:
-        raise ValueError("Required, need to specify --record-dir [directory]")
-    RECORD_DIR = args.record_dir
+        RECORD_DIR = os.getcwd()
+    else:
+        RECORD_DIR = args.record_dir
     if not os.path.exists(RECORD_DIR):
         raise ValueError(RECORD_DIR + " needs to exist")
 
@@ -594,8 +597,7 @@ def nice_print(args, fd, colors, rawline):
         print(THE_PRINT)
         # CAPTURE RECORDING TO FILE
         if args.record and IS_RECORDING:
-            record_file_path = os.path.join(RECORD_DIR, "myrecord")
-            view_cmd_path = os.path.join(RECORD_DIR, "viewcmd")
+            record_file_path = os.path.join(RECORD_DIR, RECORD_FILE_NAME)
             with open(record_file_path, "a") as f:
                 f.write(THE_PRINT +  "\n")
 
@@ -643,9 +645,19 @@ def main_loop(args, colors):
 
 def on_press(key):
     global IS_RECORDING
+    global INIT_NOT_RECORDING_STATE
+    global RECORD_FILE_NAME
     try:
         if key == RECORD_KEY:
             IS_RECORDING = not IS_RECORDING
+            INIT_NOT_RECORDING_STATE = False
+            if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
+                curr_files = [int(x.split(".log")[0]) for x in os.listdir(RECORD_DIR) if ".log" in x]
+                curr_files = sorted(curr_files)
+                if not curr_files:
+                    RECORD_FILE_NAME = "0.log"
+                else:
+                    RECORD_FILE_NAME = "{}.log".format(curr_files[-1] + 1)
     except AttributeError:
         pass
 
