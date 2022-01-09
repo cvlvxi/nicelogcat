@@ -1,17 +1,151 @@
 import sys, os, json, re
+import argparse
+import argcomplete
 import hashlib
 import json
 import time
-from args import args
 from colorama import init, Fore, Style, Back
 from datetime import datetime
 from collections import defaultdict
 from prettytable import PrettyTable, FRAME
-from constants import *
-from utils import *
+
+FORCE_DISABLE_PRINT = False
+
+COLOR_STRS = [
+    "BLACK",
+    "BLUE",
+    "CYAN",
+    "GREEN",
+    "MAGENTA",
+    "RED",
+    "WHITE",
+    "YELLOW",
+]
 
 
-DIVIDER_SIZE = 140
+FORE_COLORS = [
+    Fore.BLACK,
+    Fore.BLUE,
+    Fore.CYAN,
+    Fore.GREEN,
+    Fore.MAGENTA,
+    Fore.RED,
+    Fore.WHITE,
+    Fore.YELLOW,
+    Fore.LIGHTBLACK_EX,
+    Fore.LIGHTBLUE_EX,
+    Fore.LIGHTCYAN_EX,
+    Fore.LIGHTGREEN_EX,
+    Fore.LIGHTMAGENTA_EX,
+    Fore.LIGHTRED_EX,
+    Fore.LIGHTWHITE_EX,
+    Fore.LIGHTYELLOW_EX,
+]
+
+BACK_COLORS = [
+    Back.BLACK,
+    Back.BLUE,
+    Back.CYAN,
+    Back.GREEN,
+    Back.MAGENTA,
+    Back.RED,
+    Back.WHITE,
+    Back.YELLOW,
+    Back.LIGHTBLACK_EX,
+    Back.LIGHTBLUE_EX,
+    Back.LIGHTCYAN_EX,
+    Back.LIGHTGREEN_EX,
+    Back.LIGHTMAGENTA_EX,
+    Back.LIGHTRED_EX,
+    Back.LIGHTWHITE_EX,
+    Back.LIGHTYELLOW_EX,
+]
+
+COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
+
+ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
+
+parser = argparse.ArgumentParser(description="Bleh")
+parser.add_argument("--title", default="", type=str, help="Title to show")
+parser.add_argument(
+    "--suspend-util", default=None, type=str, help="Suspend until this is found"
+)
+parser.add_argument(
+    "--spacer",
+    default="space",
+    choices=["newline", "space", "tab", "pipe"],
+    help="spacer to use",
+)
+parser.add_argument(
+    "--linespace", type=int, default=0, help="Number of spaces between lines"
+)
+parser.add_argument("--divider", action="store_true", help="Add a divider per line")
+parser.add_argument(
+    "--title-in-header", action="store_true", help="Add title to header"
+)
+parser.add_argument("--raw", action="store_true", help="Include raw line")
+parser.add_argument(
+    "--keys", nargs="*", required=False, default=None, help="Highlight keys"
+)
+parser.add_argument(
+    "--show-title-every-line", action="store_true", help="Show title every line"
+)
+parser.add_argument(
+    "--title-line-color",
+    default=Fore.BLUE,
+    choices=COLOR_STRS,
+    help="Color to use if showing title every line",
+)
+parser.add_argument(
+    "--highlight",
+    nargs="*",
+    required=False,
+    default=None,
+    help="Highlight these phrase",
+)
+parser.add_argument(
+    "--filters", nargs="*", default=None, type=str, help="List of filters"
+)
+parser.add_argument(
+    "--filter-all", action="store_true", help="Filters Must filter all otherwise any"
+)
+parser.add_argument(
+    "--level", nargs="*", default=None, type=str, help="Only these levels"
+)
+parser.add_argument(
+    "--prefix", nargs="*", default=None, type=str, help="Only these Prefix"
+)
+parser.add_argument(
+    "--ignore-prefix", nargs="*", default=None, type=str, help="Ignore These Prefix"
+)
+parser.add_argument(
+    "--ignore-keys", nargs="*", default=None, type=str, help="Ignore These Keys"
+)
+parser.add_argument("--per-line", type=int, default=4, help="Keys per line")
+parser.add_argument(
+    "--time-per-secs",
+    type=int,
+    default=0,
+    help="Will time how many logs called every [internal] secs",
+)
+
+parser.add_argument(
+    "--header-spacer",
+    default="space",
+    choices=["newline", "space"],
+    help="Heading spacer between log",
+)
+parser.add_argument(
+    "--filterout",
+    nargs="*",
+    default=None,
+    type=str,
+    help="List of filters to filter out",
+)
+argcomplete.autocomplete(parser)
+args = parser.parse_args()
+
+DIVIDER_SIZE = 60
 
 init(autoreset=True)
 SUSPENDED = True if args.suspend_util else False
@@ -42,8 +176,6 @@ COUNTED_LOGS = 0
 HEADER_SPACER = None
 t0 = time.time()
 t1 = None
-ALLOW_RECORDING = False
-RECORD_KEY = "r"
 
 
 SPACER = " "
@@ -93,11 +225,53 @@ if args.time_per_secs > 0:
     WILL_COUNT = True
     TIMING_SECONDS_INTERVAL = args.time_per_secs
     print("TIMING NUMBER OF LOGS PER: {} seconds".format(TIMING_SECONDS_INTERVAL))
-if args.record_logs:
-    ALLOW_RECORDING = True
-    print("Recording enabled. Press key: R and again to stop")
 
 
+def norm_str(some_str):
+    some_str = some_str.strip()
+    some_str = some_str.replace('"', "")
+    some_str = some_str.replace("'", "")
+    some_str = some_str.replace("\\", "")
+    return some_str
+
+
+def norm_str2(some_str):
+    some_str = some_str.replace("\\n", "\n")
+    some_str = some_str.replace("\\", "")
+    some_str = some_str.replace('""', '"')
+    some_str = some_str.replace("''", "'")
+    some_str = some_str.replace('":"', '": "')
+    return some_str
+
+
+def norm_str3(some_str):
+    some_str = some_str.strip()
+    if not some_str:
+        return ""
+    bad_chars = ":\\/\\'\""
+    if some_str[0] in bad_chars:
+        some_str = some_str[1:]
+    if len(some_str) > 1 and some_str[-1] in bad_chars:
+        some_str = some_str[0:-1]
+    return some_str
+
+
+def memoize(v, colors):
+    global MEMOIZED_MESSAGES
+    if len(MEMOIZED_MESSAGES) == MAX_MEMOIZED_MESSAGES:
+        print(colors["HIGHLIGHT_COLOR"] + "=" * 50)
+        print("Clearing Memozied Messages")
+        print(colors["HIGHLIGHT_COLOR"] + "=" * 50)
+        MEMOIZED_MESSAGES = defaultdict(int)
+    v_hash = hashlib.md5(v.encode()).hexdigest()
+    if v_hash not in MEMOIZED_MESSAGES.keys():
+        MEMOIZED_MESSAGES[v_hash] += 1
+        return (True, 0)
+    MEMOIZED_MESSAGES[v_hash] += 1
+    curr_count = MEMOIZED_MESSAGES[v_hash]
+    if MEMOIZED_MESSAGES[v_hash] % SKIP_UNTIL_REPEAT == 0:
+        return (True, curr_count)
+    return (False, -1)
 
 
 def nice_title(title, colors):
@@ -134,6 +308,56 @@ def get_log_level(log_level, colors):
         raise ValueError("Unknown log_level found: {}".format(log_level))
 
 
+def remove_col_from_val(val):
+    new_val = val
+    for col in ALL_COLORS:
+        if col in val:
+            new_val = new_val.replace(col, "")
+    return new_val
+
+
+def style(val, min_len=None, color=None):
+    if not val or not isinstance(val, str):
+        return val
+    new_val = remove_col_from_val(val)
+    new_val_len = len(new_val)
+    spacer = " "
+    if min_len:
+        if new_val_len < min_len:
+            new_val = val + spacer * (min_len - new_val_len)
+        else:
+            raise ValueError(
+                "orig_val: {} new_val: {} has length: {} which is bigger than {}".format(
+                    val, new_val, new_val_len, min_len
+                )
+            )
+    if color:
+        val = color + val + Style.RESET_ALL
+    return val
+
+
+def nested_dicts(some_dict, level=0):
+    new_dict = {}
+    for k, v in some_dict.items():
+        value = None
+        try:
+            value = json.loads(v)
+        except:
+            value = v
+        if not isinstance(value, dict):
+            new_dict[k] = v
+            continue
+        for subk, subv in value.items():
+            if isinstance(subv, dict):
+                new_dict[subk] = nested_dicts(subv, level=level + 1)
+            else:
+                if subk in new_dict.keys():
+                    continue
+                    # subk = f"{subk}_{level}"
+                new_dict[subk] = subv
+    return new_dict
+
+
 def nice_print_dict(
     key_count, top_spacer, some_dict, key_color, value_color, spacer=SPACER
 ):
@@ -168,6 +392,21 @@ def nice_print_dict(
     if nice_strings:
         nice_str = spacer.join([x for x in nice_strings if x])
     return (key_count, nice_str)
+
+
+def find_dict_in_v(v, rawline=None):
+    if "{" in v and "}" in v:
+        first_bracket_idx = v.find("{")
+        last_bracket_idx = v.rfind("}")
+        json_str = v[first_bracket_idx : last_bracket_idx + 1]
+        try:
+            val = json.loads(json_str)
+            return val
+        except Exception as e:
+            return {}
+
+    else:
+        return {}
 
 
 def nice_print(args, fd, colors, rawline):
@@ -282,7 +521,7 @@ def nice_print(args, fd, colors, rawline):
         for phrase in set(HIGHLIGHT_PHRASES):
             if phrase in result_str:
                 result_str = result_str.replace(
-                    phrase, style(phrase, color=colors["HIGHLIGHT_COLOR"])
+                    phrase, colors["HIGHLIGHT_COLOR"] + phrase  # + Style.RESET_ALL
                 )
     if FILTERS:
         if args.filter_all:
@@ -315,10 +554,7 @@ def nice_print(args, fd, colors, rawline):
                 )
                 COUNTED_LOGS = 0
         if args.divider:
-            print(style(DIVIDER, color=colors["DIVIDER_STYLE"]))
-            if args.linespace > 0:
-                print()
-
+            print(DIVIDER)
         if FORCE_DISABLE_PRINT:
             return True
         # THE PRINT
@@ -329,11 +565,10 @@ def nice_print(args, fd, colors, rawline):
             print(
                 style(
                     "[{}{}]".format(timing_title, args.title),
-                    color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)]
-                    + Fore.BLACK,
+                    color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)] + Fore.BLACK
                 )
             )
-        print(header_line_str + " " + result_str)
+        print(header_line_str + result_str)
         return True
     return False
 
@@ -375,6 +610,7 @@ def main_loop(args, colors):
             for i in range(args.linespace):
                 print()
 
+
 def main():
     colors = {
         "HEADER_STR_COLOR": Back.YELLOW + Fore.BLACK,
@@ -385,13 +621,12 @@ def main():
         "CURRENT_TIME_COLOR": Fore.RED,
         "PREFIX_COLOR": Fore.GREEN,
         "TITLE_COLOR": Fore.MAGENTA,
-        "HIGHLIGHT_COLOR": Fore.BLACK + Back.GREEN,
+        "HIGHLIGHT_COLOR": Back.BLACK + Fore.GREEN,
         "V_COLOR": Fore.WHITE,
         "K_COLOR": Fore.CYAN,
         "STACK_MSG_COLOR": Fore.GREEN,
         "PATH_COLOR": Fore.LIGHTMAGENTA_EX,
         "TIMING_COLOR": Back.RED + Fore.BLACK,
-        "DIVIDER_STYLE": Fore.CYAN,
     }
     nice_title(args.title, colors)
     main_loop(args, colors)
