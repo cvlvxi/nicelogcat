@@ -1,4 +1,4 @@
-# Nice Log Cat
+# Nice 🪵 Log Cat 🐱
 
 Just a dog pile of things that help pet the logcat
 
