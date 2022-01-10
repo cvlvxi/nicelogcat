@@ -91,6 +91,13 @@ adb logcat | nicelogcat --divider --linespace 4
 
 <img src="screenshots/10.png"/>
 
+## Log levels!
+
+```
+adb logcat | nicelogcat --flat --level ERROR
+```
+
+<img src="screenshots/11.png"/>
 
 ## More!
 
