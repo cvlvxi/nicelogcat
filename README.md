@@ -19,7 +19,7 @@ See `nicelogcat --help` for usage
 adb logcat | nicelogcat --flat
 ```
 
-<img src="screenshots/1.png" width="1000" height="600"/>
+<img src="screenshots/1.png"/>
 
 ## Filter by prefix
 
@@ -28,7 +28,7 @@ adb logcat | nicelogcat --flat -p tvos
 ```
 
 
-<img src="screenshots/2.png" width="800" height="200"/>
+<img src="screenshots/2.png"/>
 
 ## Record
 
