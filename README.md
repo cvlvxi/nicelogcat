@@ -52,6 +52,11 @@ adb logcat | nicelogcat --flat --stacktrace --disable
 
 <img src="screenshots/5.png"/>
 
+## All the colors of the Rainbow
+
+<img src="screenshots/6.png"/>
+
+
 
 ## More!
 
