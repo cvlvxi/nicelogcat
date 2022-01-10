@@ -62,7 +62,7 @@ adb logcat | nicelogcat --flat --stacktrace --disable
 adb logcat | nicelogcat --flat "lines"
 ```
 
-- Will filter any keys specified 
+- Will filter any keys specified
 
 <img src="screenshots/7.png"/>
 
@@ -74,6 +74,22 @@ adb logcat | nicelogcat --all --flat "lines" "Thread-6"
 
 <img src="screenshots/8.png"/>
 
+
+## Custom Titles per Line (if you want)!
+
+```
+adb logcat | nicelogcat --flat --show-title-every-line --title "Hello World"
+```
+
+<img src="screenshots/9.png"/>
+
+## Dividers! Customizations!
+
+```
+adb logcat | nicelogcat --divider --linespace 4
+```
+
+<img src="screenshots/10.png"/>
 
 
 ## More!

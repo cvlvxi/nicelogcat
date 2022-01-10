@@ -740,7 +740,7 @@ def nice_print(args, fd, colors, rawline):
                 COUNTED_LOGS = 0
         divider_str = ""
         if args.divider:
-            divider_str = DIVIDER
+            divider_str = DIVIDER + "\n"
 
         if args.title and args.show_title_every_line:
             timing_title = (
@@ -748,7 +748,7 @@ def nice_print(args, fd, colors, rawline):
             )
             title_str = style(
                 "[{}{}]".format(timing_title, args.title),
-                color=BACK_COLORS[COLOR_STRS.index(args.title_line_color)] + Fore.BLACK,
+                color=Back.GREEN+ Fore.BLACK,
             )
             header_line_str = title_str + "\n" + header_line_str
         if ALLOW_RECORD and IS_RECORDING:
