@@ -56,6 +56,24 @@ adb logcat | nicelogcat --flat --stacktrace --disable
 
 <img src="screenshots/6.png"/>
 
+## Filter
+
+```
+adb logcat | nicelogcat --flat "lines"
+```
+
+- Will filter any keys specified 
+
+<img src="screenshots/7.png"/>
+
+- Restrictive filter with --all
+
+```
+adb logcat | nicelogcat --all --flat "lines" "Thread-6"
+```
+
+<img src="screenshots/8.png"/>
+
 
 
 ## More!
