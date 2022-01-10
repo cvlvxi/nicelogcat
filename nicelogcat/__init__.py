@@ -327,7 +327,7 @@ if args.flat:
     args.divider = False
     LEFT_OF_KEY_VALUE = ""
     RIGHT_OF_KEY_VALUE = ""
-    print("HERE")
+    HEADER_SPACER = ""
 
 
 def norm_str(some_str):
@@ -568,6 +568,8 @@ def nice_print(args, fd, colors, rawline):
     header_space_max = 33
     header_diff = header_space_max - header_len
     header_line_str = " ".join(header_line_vals) + " " * header_diff + HEADER_SPACER
+    if args.flat:
+        header_line_str = " ".join(header_line_vals)
     total_header_len = header_len + header_diff
     NESTED_SPACER = " "
     TOP_SPACER = "\n{}{}".format(HEADER_SPACER, " " * total_header_len) if not args.flat else " "
@@ -756,7 +758,11 @@ def nice_print(args, fd, colors, rawline):
 
         # THE PRINT
         THE_PRINT = divider_str + header_line_str + TOP_SPACER + " " + result_str
-        print(THE_PRINT)
+        if args.flat:
+            print(header_line_str + " " + result_str.strip())
+        else:
+            print(THE_PRINT)
+
 
         # CAPTURE RECORDING TO FILE
         if ALLOW_RECORD and IS_RECORDING:
