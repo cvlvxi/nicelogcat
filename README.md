@@ -50,6 +50,7 @@ adb logcat | nicelogcat -p Logger --flat --record-keys x
 adb logcat | nicelogcat --flat --stacktrace --disable
 ```
 
+<img src="screenshots/5.png"/>
 
 
 ## More!
