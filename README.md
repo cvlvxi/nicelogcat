@@ -44,6 +44,14 @@ adb logcat | nicelogcat -p Logger --flat --record-keys x
 ```
 <img src="screenshots/4.png"/>
 
+## Nice Stacktraces
+
+```
+adb logcat | nicelogcat --flat --stacktrace --disable
+```
+
+
+
 ## More!
 
-More hacks and surprises 
+More hacks and surprises
