@@ -9,6 +9,7 @@ from colorama import init, Fore, Style, Back
 from datetime import datetime
 from collections import defaultdict
 from functools import reduce
+import random
 from prettytable import PrettyTable, FRAME
 
 FORCE_DISABLE_PRINT = False
@@ -26,15 +27,13 @@ COLOR_STRS = [
 
 
 FORE_COLORS = [
-    Fore.BLACK,
+    Fore.YELLOW,
+    Fore.WHITE,
     Fore.BLUE,
     Fore.CYAN,
     Fore.GREEN,
     Fore.MAGENTA,
     Fore.RED,
-    Fore.WHITE,
-    Fore.YELLOW,
-    Fore.LIGHTBLACK_EX,
     Fore.LIGHTBLUE_EX,
     Fore.LIGHTCYAN_EX,
     Fore.LIGHTGREEN_EX,
@@ -42,6 +41,8 @@ FORE_COLORS = [
     Fore.LIGHTRED_EX,
     Fore.LIGHTWHITE_EX,
     Fore.LIGHTYELLOW_EX,
+    Fore.BLACK,
+    Fore.LIGHTBLACK_EX,
 ]
 
 BACK_COLORS = [
@@ -161,10 +162,10 @@ parser.add_argument(
     help="List of filters",
 )
 parser.add_argument(
-    "--filter-all", action="store_true", help="Filters Must filter all otherwise any"
+    "--filter-any", action="store_true", help="Filters allow for any of the terms"
 )
 parser.add_argument(
-    "--all", action="store_true", help="Filters Must filter all otherwise any"
+    "--any", action="store_true", help="Filters allow for any of the terms"
 )
 parser.add_argument("--stacktrace", action="store_true", help="Find Stack Traces")
 parser.add_argument(
@@ -245,6 +246,7 @@ RECORD_FILE_NAME = "0.log"
 RECORD_KEYS_DIFF = []
 PREV_RECORDED_STRING_DICT = {}
 FIND_STACKTRACES = False
+PREV_MSGS_BEFORE_STACK_TRACE = 6
 LEFT_OF_KEY_VALUE = "["
 RIGHT_OF_KEY_VALUE = "]"
 
@@ -267,9 +269,6 @@ if args.per_line:
 if args.keys:
     HIGHLIGHT_KEYS = flatten_list(args.keys)
     print("HIGHLIGHT_KEYS: {}".format([k for k in HIGHLIGHT_KEYS]))
-if args.highlight:
-    HIGHLIGHT_PHRASES = flatten_list(args.highlight)
-    print("HIGHLIGHT_PHRASES: {}".format([k for k in HIGHLIGHT_PHRASES]))
 if args.ignore_keys:
     IGNORE_KEYS = flatten_list(args.ignore_keys)
     print("IGNORE_KEYS: {}".format([k for k in IGNORE_KEYS]))
@@ -290,6 +289,9 @@ if args.filters or FILTERZ:
     FILTERS = FILTERS + FILTERZ
     HIGHLIGHT_PHRASES += FILTERS
     print("FILTERS: {}".format([k for k in FILTERS]))
+if args.highlight or HIGHLIGHT_PHRASES:
+    HIGHLIGHT_PHRASES = flatten_list(args.highlight) if args.highlight else [] + HIGHLIGHT_PHRASES
+    print("HIGHLIGHT_PHRASES: {}".format([k for k in HIGHLIGHT_PHRASES]))
 if args.filterout:
     FILTER_OUT = flatten_list(args.filterout)
     print("FILTER_OUT: {}".format([k for k in FILTER_OUT]))
@@ -321,7 +323,6 @@ if args.stacktrace:
     FIND_STACKTRACES = True
     print("WILL FIND STACK TRACES")
 if args.flat:
-    SPACER = " "
     args.linespace = 0
     PER_LINE = -1
     args.divider = False
@@ -509,8 +510,7 @@ def flatten_dict(d):
     return new_dict
 
 
-def find_stack(stack_trace_map, pfix, message):
-    num_prev = 5
+def find_stack(stack_trace_map, pfix, message, stack_trace_colors):
     if not pfix or (PREFIXES and pfix not in PREFIXES):
         return
     if pfix not in stack_trace_map:
@@ -519,6 +519,7 @@ def find_stack(stack_trace_map, pfix, message):
             "stacktraces": [],
             "started": False,
         }
+        stack_trace_colors[pfix] = FORE_COLORS[random.randint(2, 11)]
     message = message.strip()
     is_a_stack_trace = message.startswith("at ")
 
@@ -533,7 +534,9 @@ def find_stack(stack_trace_map, pfix, message):
             stack_trace_map[pfix]["started"]
             and len(stack_trace_map[pfix]["stacktraces"]) > 0
         ):
-            print(style(pfix, color=Fore.GREEN))
+            print(DIVIDER)
+            print()
+            print("[" + style(pfix, color=stack_trace_colors[pfix]) + "]")
             print(
                 style(
                     "\n".join([x for x in stack_trace_map[pfix]["prefixes"] if x]),
@@ -546,7 +549,7 @@ def find_stack(stack_trace_map, pfix, message):
             stack_trace_map[pfix]["started"] = False
             stack_trace_map[pfix]["prefixes"] = []
             stack_trace_map[pfix]["stacktraces"] = []
-    if len(stack_trace_map[pfix]["prefixes"]) == num_prev:
+    if len(stack_trace_map[pfix]["prefixes"]) == PREV_MSGS_BEFORE_STACK_TRACE:
         stack_trace_map[pfix]["prefixes"] = []
     return False
 
@@ -709,10 +712,10 @@ def nice_print(args, fd, colors, rawline):
                     phrase, style(phrase, color=colors["HIGHLIGHT_COLOR"])
                 )
     if FILTERS:
-        if args.filter_all or args.all:
-            will_print = all([f.lower() in result_str_no_col.lower() for f in FILTERS])
-        else:
+        if args.filter_any or args.any:
             will_print = any([f.lower() in result_str_no_col.lower() for f in FILTERS])
+        else:
+            will_print = all([f.lower() in result_str_no_col.lower() for f in FILTERS])
     if FILTER_OUT:
         will_print = not any([f in result_str_no_col for f in FILTER_OUT])
     if SUSPENDED:
@@ -780,6 +783,7 @@ def nice_print(args, fd, colors, rawline):
 
 def main_loop(args, colors):
     STACK_TRACE_MAP = {}
+    STACK_TRACE_COLORS = {}
     while True:
         line = next(INPUT)
         line = line.decode(errors="ignore")
@@ -798,9 +802,15 @@ def main_loop(args, colors):
         msg = norm_str3(" ".join(parts[6:]))
 
         if FIND_STACKTRACES:
-            will_skip = find_stack(STACK_TRACE_MAP, prefix, msg)
-            if will_skip:
-                continue
+            run_find_stack = True
+            if PREFIXES:
+                run_find_stack = prefix.lower() in [p.lower() for p in PREFIXES]
+            if IGNORE_PREFIXES:
+                run_find_stack = not(prefix.lower() in [p.lower() for p in IGNORE_PREFIXES])
+            if run_find_stack:
+                will_skip = find_stack(STACK_TRACE_MAP, prefix, msg, STACK_TRACE_COLORS)
+                if will_skip:
+                    continue
 
         # current_time = datetime.now().strftime("%m-%d %H:%M:%S")
         log_time = style(date + " " + timestamp, color=colors["TIME_COLOR"], min_len=20)
