@@ -91,6 +91,7 @@ parser.add_argument(
 )
 parser.add_argument("--divider", action="store_true", help="Add a divider per line")
 parser.add_argument("--disable", action="store_true", help="Disable Print")
+parser.add_argument("--flat", action="store_true", help="Flat")
 parser.add_argument(
     "--title-in-header", action="store_true", help="Add title to header"
 )
@@ -244,6 +245,8 @@ RECORD_FILE_NAME = "0.log"
 RECORD_KEYS_DIFF = []
 PREV_RECORDED_STRING_DICT = {}
 FIND_STACKTRACES = False
+LEFT_OF_KEY_VALUE = "["
+RIGHT_OF_KEY_VALUE = "]"
 
 SPACER = " "
 if args.spacer == "newline":
@@ -256,6 +259,7 @@ elif args.spacer == "pipe":
     SPACER = " | "
 else:
     pass
+
 
 if args.per_line:
     PER_LINE = args.per_line
@@ -316,6 +320,14 @@ if ALLOW_RECORD:
 if args.stacktrace:
     FIND_STACKTRACES = True
     print("WILL FIND STACK TRACES")
+if args.flat:
+    SPACER = " "
+    args.linespace = 0
+    PER_LINE = -1
+    args.divider = False
+    LEFT_OF_KEY_VALUE = ""
+    RIGHT_OF_KEY_VALUE = ""
+    print("HERE")
 
 
 def norm_str(some_str):
@@ -436,6 +448,7 @@ def nice_print_dict(
 ):
     nice_str = ""
     nice_strings = []
+
     for k, v in some_dict.items():
         if isinstance(v, dict):
             (new_key_count, nice_str) = nice_print_dict(
@@ -457,8 +470,11 @@ def nice_print_dict(
             nice_strings.append(
                 spacer
                 + SPACER
-                + "[{}: {}]".format(
-                    style(k, color=key_color), style(v, color=value_color)
+                + "{}{}: {}{}".format(
+                    LEFT_OF_KEY_VALUE,
+                    style(k, color=key_color),
+                    style(v, color=value_color),
+                    RIGHT_OF_KEY_VALUE,
                 )
             )
             key_count += 1
@@ -506,7 +522,6 @@ def find_stack(stack_trace_map, pfix, message):
     message = message.strip()
     is_a_stack_trace = message.startswith("at ")
 
-
     if is_a_stack_trace:
         stack_trace_map[pfix]["stacktraces"].append(message)
         if not stack_trace_map[pfix]["started"]:
@@ -514,7 +529,10 @@ def find_stack(stack_trace_map, pfix, message):
         return True
     else:
         stack_trace_map[pfix]["prefixes"].append(message)
-        if stack_trace_map[pfix]["started"] and len(stack_trace_map[pfix]["stacktraces"]) > 0:
+        if (
+            stack_trace_map[pfix]["started"]
+            and len(stack_trace_map[pfix]["stacktraces"]) > 0
+        ):
             print(style(pfix, color=Fore.GREEN))
             print(
                 style(
@@ -552,7 +570,7 @@ def nice_print(args, fd, colors, rawline):
     header_line_str = " ".join(header_line_vals) + " " * header_diff + HEADER_SPACER
     total_header_len = header_len + header_diff
     NESTED_SPACER = " "
-    TOP_SPACER = "\n{}{}".format(HEADER_SPACER, " " * total_header_len)
+    TOP_SPACER = "\n{}{}".format(HEADER_SPACER, " " * total_header_len) if not args.flat else " "
 
     level_val = remove_col_from_val(fd["level"])
     prefix_val = remove_col_from_val(fd["prefix"])
@@ -638,7 +656,7 @@ def nice_print(args, fd, colors, rawline):
             else:
                 string_dict[non_color_k] = v
                 string_list.append(
-                    "[{}: {}]".format(k, style(v, color=colors["V_COLOR"]))
+                    "{}{}: {}{}".format(LEFT_OF_KEY_VALUE, k, style(v, color=colors["V_COLOR"]), RIGHT_OF_KEY_VALUE)
                 )
 
     if args.raw:
@@ -720,7 +738,7 @@ def nice_print(args, fd, colors, rawline):
                 COUNTED_LOGS = 0
         divider_str = ""
         if args.divider:
-            divider_str = DIViDER
+            divider_str = DIVIDER
 
         if args.title and args.show_title_every_line:
             timing_title = (
