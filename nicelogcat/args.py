@@ -100,6 +100,7 @@ def get_args():
         help="When recording, only record when these keys change",
     )
     parser.add_argument(
+        "-f",
         "--filters",
         action="append",
         nargs="*",

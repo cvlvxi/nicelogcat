@@ -1,4 +1,5 @@
 from functools import reduce
+from re import I
 from colorama import init, Fore, Style, Back
 import json
 import random
@@ -269,7 +270,8 @@ def find_stack(stack_trace_map, pfix, message, stack_trace_colors, log_time, arg
             stack_trace_map[pfix]["started"]
             and len(stack_trace_map[pfix]["stacktraces"]) > 0
         ):
-            stack_trace_str = clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time)
+            stack_trace_str = clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time, args=args)
+            print(stack_trace_str)
     if len(stack_trace_map[pfix]["prefixes"]) == args.PREV_MSGS_BEFORE_STACK_TRACE:
         stack_trace_map[pfix]["prefixes"] = []
     return stack_trace_str
@@ -287,7 +289,7 @@ def clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time, args):
         )
         + "\n"
     )
-    biggest_index = len(stack_trace_map[pfix]["stacktraces"]) - 1
+    biggest_index = len(stack_trace_map[pfix]['stacktraces']) - 1
     num_stack_traces = min(args.NUM_STACK_TRACES_TO_PRINT, biggest_index)
     continued_str = ""
     if num_stack_traces < biggest_index:
