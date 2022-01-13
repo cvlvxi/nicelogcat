@@ -14,8 +14,9 @@ FORCE_DISABLE_PRINT = False
 IS_RECORDING = False
 INIT_NOT_RECORDING_STATE = True
 RECORD_KEY = keyboard.Key.f12
-RECORD_FILE_NAME = "0.log"
+RECORD_FILE_NAME = None
 RECORD_DIR = ""
+TITLE = ""
 init(autoreset=True)
 INPUT = open(0, "rb")
 # INPUT = sys.stdin
@@ -309,21 +310,29 @@ def on_press(key):
     global IS_RECORDING
     global INIT_NOT_RECORDING_STATE
     global RECORD_FILE_NAME
+    global TITLE
+    set_filename = False
     try:
         if key == RECORD_KEY:
             IS_RECORDING = not IS_RECORDING
             INIT_NOT_RECORDING_STATE = False
+            if not INIT_NOT_RECORDING_STATE and IS_RECORDING:
+                if not TITLE:
+                    TITLE = os.path.dirname(os.getcwd())
+                set_filename = True
             if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
+                set_filename = True
+            if set_filename:
                 curr_files = [
-                    int(x.split(".log")[0])
+                    int(x.rsplit('.log')[0].rsplit('_')[-1])
                     for x in os.listdir(RECORD_DIR)
-                    if ".log" in x
+                    if TITLE in x
                 ]
                 curr_files = sorted(curr_files)
-                if not curr_files:
-                    RECORD_FILE_NAME = "0.log"
-                else:
-                    RECORD_FILE_NAME = "{}.log".format(curr_files[-1] + 1)
+                next_inc = 0
+                if curr_files:
+                    next_inc = int(curr_files[-1]) + 1
+                RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
     except AttributeError:
         pass
 
@@ -332,8 +341,10 @@ def on_press(key):
 
 def main():
     global RECORD_DIR
+    global TITLE
     args = get_args()
     RECORD_DIR = args.RECORD_DIR
+    TITLE = args.title.lower().replace(" ", "_") if args.title else ""
     colors = {
         "HEADER_STR_COLOR": Back.YELLOW + Fore.BLACK,
         "LEVEL_WARN_COLOR": Back.BLACK + Fore.YELLOW,
