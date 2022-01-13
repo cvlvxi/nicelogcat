@@ -209,8 +209,8 @@ def nice_print_dict(
                 + args.SPACER
                 + "{}{}: {}{}".format(
                     args.LEFT_OF_KEY_VALUE,
-                    style(k, color=key_color),
-                    style(v, color=value_color),
+                    style(str(k).strip(), color=key_color),
+                    style(str(v).strip(), color=value_color),
                     args.RIGHT_OF_KEY_VALUE,
                 )
             )
@@ -222,19 +222,22 @@ def nice_print_dict(
 
 def find_dict_in_v(v, rawline=None):
     if not isinstance(v, str):
-        return {}
-    if "{" in v and "}" in v:
-        first_bracket_idx = v.find("{")
-        last_bracket_idx = v.rfind("}")
-        json_str = v[first_bracket_idx : last_bracket_idx + 1]
-        try:
-            val = json.loads(json_str)
-            return val
-        except Exception as e:
+        if isinstance(v, dict):
+            return v
+        else:
             return {}
-
     else:
-        return {}
+        if "{" in v and "}" in v:
+            first_bracket_idx = v.find("{")
+            last_bracket_idx = v.rfind("}")
+            v = v.replace("'", '"')
+            json_str = v[first_bracket_idx : last_bracket_idx + 1]
+            try:
+                val = json.loads(json_str)
+                return val
+            except Exception as e:
+                return {}
+    return {}
 
 
 def flatten_dict(d):
@@ -273,7 +276,6 @@ def find_stack(stack_trace_map, pfix, message, stack_trace_colors, log_time, arg
             and len(stack_trace_map[pfix]["stacktraces"]) > 0
         ):
             stack_trace_str = clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time, args=args)
-            print(stack_trace_str)
     if len(stack_trace_map[pfix]["prefixes"]) == args.PREV_MSGS_BEFORE_STACK_TRACE:
         stack_trace_map[pfix]["prefixes"] = []
     return stack_trace_str

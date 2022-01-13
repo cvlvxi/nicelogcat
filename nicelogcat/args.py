@@ -31,6 +31,7 @@ def get_args():
     parser.add_argument("--divider", action="store_true", help="Add a divider per line")
     parser.add_argument("--disable", action="store_true", help="Disable Print")
     parser.add_argument("--flat", action="store_true", help="Flat")
+    parser.add_argument("--no-flat", action="store_true", help="No Flat")
     parser.add_argument(
         "--title-in-header", action="store_true", help="Add title to header"
     )
@@ -293,7 +294,7 @@ def get_args():
             print("WILL FIND STACK TRACES")
         if SHOW_ARGS:
             print("NUM stack trace lines: {}".format(args.NUM_STACK_TRACES_TO_PRINT))
-    if args.flat:
+    if args.flat and not args.no_flat:
         args.linespace = 0
         args.PER_LINE = -1
         args.divider = False

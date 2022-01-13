@@ -44,7 +44,7 @@ def nice_print(args, fd, colors, rawline):
     total_header_len = header_len + header_diff
     NESTED_SPACER = " "
     TOP_SPACER = (
-        "\n{}{}".format(args.HEADER_SPACER, " " * total_header_len) if not args.flat else " "
+        "\n{}{}".format(args.HEADER_SPACER, " " * total_header_len) if (not args.flat or args.no_flat) else " "
     )
 
     level_val = remove_col_from_val(fd["level"])
@@ -146,7 +146,6 @@ def nice_print(args, fd, colors, rawline):
                 style(rawline, color=colors["V_COLOR"]),
             )
         )
-
     will_print = True
     result_str = args.SPACER.join([x for x in string_list if x])
     result_str_no_col = remove_col_from_val(result_str)
@@ -157,14 +156,14 @@ def nice_print(args, fd, colors, rawline):
     change_detected = False
     if FORCE_DISABLE_PRINT or args.disable:
         will_print = False
+
     if args.RECORD_KEYS_DIFF:
-        if not args.PREV_RECORDED_STRING_DICT:
-            PREV_RECORDED_STRING_DICT = string_dict
         for key in args.RECORD_KEYS_DIFF:
-            if key in string_dict and key in PREV_RECORDED_STRING_DICT:
-                if string_dict[key] != PREV_RECORDED_STRING_DICT[key]:
-                    changed_keys.append(key)
-                    change_detected = True
+            if key in string_dict and key not in args.PREV_RECORDED_STRING_DICT:
+                args.PREV_RECORDED_STRING_DICT[key] = string_dict[key]
+            if key in string_dict and string_dict[key] != args.PREV_RECORDED_STRING_DICT[key]:
+                changed_keys.append(key)
+                change_detected = True
         # Highlight keys
         for key in changed_keys:
             result_str = result_str.replace(
@@ -172,11 +171,11 @@ def nice_print(args, fd, colors, rawline):
             )
         # Update
         for key in string_dict:
-            PREV_RECORDED_STRING_DICT[key] = string_dict[key]
+            args.PREV_RECORDED_STRING_DICT[key] = string_dict[key]
 
     if args.RECORD_KEYS_DIFF and not change_detected:
         will_print = False
-        return False
+        return ('', False)
 
     if args.HIGHLIGHT_PHRASES:
         for phrase in set(args.HIGHLIGHT_PHRASES):
@@ -231,7 +230,7 @@ def nice_print(args, fd, colors, rawline):
         thing_to_print = (
             divider_str + count_str + header_line_str + TOP_SPACER + args.SPACER + result_str
         )
-        if args.flat:
+        if args.flat and not args.no_flat:
             thing_to_print = count_str + header_line_str + args.SPACER + result_str.strip()
         return (thing_to_print, change_detected)
     return ("", False)
