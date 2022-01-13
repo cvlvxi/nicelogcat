@@ -1,11 +1,8 @@
-import os, json
+import os
 import json
 import time
-import random
 from pynput import keyboard
-from colorama import init, Fore, Style, Back
-from functools import reduce
-from threading import Thread, Event
+from colorama import init, Fore, Back
 from nicelogcat.utils import *
 from nicelogcat.args import get_args
 from traceback import print_exc
@@ -52,7 +49,7 @@ def nice_print(args, fd, colors, rawline):
 
     if args.level and any([level_val not in x for x in args.LEVELS]):
         return ("", False)
-    if args.prefix and any([prefix_val not in x for x in args.PREFIXES]) or not prefix_val:
+    if args.PREFIXES and all([prefix_val.strip().lower() != x.lower() for x in args.PREFIXES]) or not prefix_val:
         return ("", False)
     if args.ignore_prefix and any([prefix_val in x for x in args.IGNORE_PREFIXES]):
         return ("", False)
