@@ -59,6 +59,7 @@ def get_args():
         help="Heading spacer between log",
     )
     parser.add_argument(
+        "-x",
         "--filterout",
         action="append",
         nargs="*",

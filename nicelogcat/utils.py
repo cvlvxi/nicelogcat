@@ -189,7 +189,7 @@ def nice_print_dict(
     for k, v in some_dict.items():
         if isinstance(v, dict):
             (new_key_count, nice_str) = nice_print_dict(
-                key_count, top_spacer, v, key_color, value_color, spacer
+                key_count, top_spacer, v, key_color, value_color, args
             )
 
             nice_strings.append(nice_str)
@@ -216,11 +216,13 @@ def nice_print_dict(
             )
             key_count += 1
     if nice_strings:
-        nice_str = spacer.join([x for x in nice_strings if x])
+        nice_str = args.SPACER.join([x for x in nice_strings if x])
     return (key_count, nice_str)
 
 
 def find_dict_in_v(v, rawline=None):
+    if not isinstance(v, str):
+        return {}
     if "{" in v and "}" in v:
         first_bracket_idx = v.find("{")
         last_bracket_idx = v.rfind("}")

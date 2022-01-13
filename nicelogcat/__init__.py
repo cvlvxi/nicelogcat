@@ -8,6 +8,7 @@ from functools import reduce
 from threading import Thread, Event
 from nicelogcat.utils import *
 from nicelogcat.args import get_args
+from traceback import print_exc
 
 FORCE_DISABLE_PRINT = False
 
@@ -189,7 +190,8 @@ def nice_print(args, fd, colors, rawline):
         else:
             will_print = all([f.lower() in result_str_no_col.lower() for f in args.FILTERS])
     if args.FILTER_OUT:
-        will_print = not any([f in result_str_no_col for f in args.FILTER_OUT])
+        if will_print:
+            will_print = not any([f in result_str_no_col.lower() for f in args.FILTER_OUT])
     count_str = ""
     if will_print:
         if args.WILL_COUNT:
@@ -236,75 +238,78 @@ def nice_print(args, fd, colors, rawline):
 
 
 def main_loop(args, colors):
-    MESSAGE_BUFFER = []
-    MESSAGE_BUFFER_SIZE = 2000
-    STACK_TRACE_MAP = {}
-    STACK_TRACE_COLORS = {}
-    while True:
-        line = next(INPUT)
-        line = line.decode(errors="ignore")
-        line = line.strip()
-        if not line:
-            continue
-        parts = [x for x in line.split(" ") if x]
-        if parts[0] == "---------":
-            continue
-        date = norm_str3(parts[0])
-        timestamp = norm_str3(parts[1])
-        pid = norm_str3(parts[2])
-        log_level = get_log_level(norm_str3(parts[4]), colors)
-        prefix = norm_str3(parts[5]).strip()
-        msg = norm_str3(" ".join(parts[6:]))
-        log_time = style(date + " " + timestamp, color=colors["TIME_COLOR"], min_len=20)
-        the_keys = ["level", "prefix", "log_time", "pid", "message"]
-        the_values = [
-            style(log_level, min_len=10),
-            style(prefix, color=colors["PREFIX_COLOR"], min_len=70),
-            log_time,
-            pid,
-            msg,
-        ]
-        stack_trace_str = ""
-        # Stack Traces
-        if args.FIND_STACKTRACES:
-            run_find_stack = True
-            if args.PREFIXES:
-                run_find_stack = prefix.lower() in [p.lower() for p in args.PREFIXES]
-            if args.IGNORE_PREFIXES:
-                run_find_stack = not (
-                    prefix.lower() in [p.lower() for p in args.IGNORE_PREFIXES]
-                )
-            if run_find_stack:
-                stack_trace_str = find_stack(
-                    STACK_TRACE_MAP, prefix, msg, STACK_TRACE_COLORS, log_time, args=args
-                )
-        the_dict = dict(zip(the_keys, the_values))
-        fd = nested_dicts(the_dict)
-        (thing_to_print, change_detected) = nice_print(args, fd, colors, rawline=line)
-        if not thing_to_print:
-            continue
-        if FORCE_DISABLE_PRINT or args.disable:
-            continue
-        # THE PRINT
-        if stack_trace_str:
-            thing_to_print = stack_trace_str + "\n" + thing_to_print
-        if args.linespace > 1:
-            thing_to_print = thing_to_print + "\n" * args.linespace
-        if len(MESSAGE_BUFFER) == MESSAGE_BUFFER_SIZE:
-            MESSAGE_BUFFER = []
-        MESSAGE_BUFFER.append(thing_to_print)
-        print(MESSAGE_BUFFER[-1])
+    try:
+        # MESSAGE_BUFFER = []
+        # MESSAGE_BUFFER_SIZE = 2000
+        STACK_TRACE_MAP = {}
+        STACK_TRACE_COLORS = {}
+        while True:
+            line = next(INPUT)
+            line = line.decode(errors="ignore")
+            line = line.strip()
+            if not line:
+                continue
+            parts = [x for x in line.split(" ") if x]
+            if parts[0] == "---------":
+                continue
+            date = norm_str3(parts[0])
+            timestamp = norm_str3(parts[1])
+            pid = norm_str3(parts[2])
+            log_level = get_log_level(norm_str3(parts[4]), colors)
+            prefix = norm_str3(parts[5]).strip()
+            msg = norm_str3(" ".join(parts[6:]))
+            log_time = style(date + " " + timestamp, color=colors["TIME_COLOR"], min_len=20)
+            the_keys = ["level", "prefix", "log_time", "pid", "message"]
+            the_values = [
+                style(log_level, min_len=10),
+                style(prefix, color=colors["PREFIX_COLOR"], min_len=70),
+                log_time,
+                pid,
+                msg,
+            ]
+            stack_trace_str = ""
+            # Stack Traces
+            if args.FIND_STACKTRACES:
+                run_find_stack = True
+                if args.PREFIXES:
+                    run_find_stack = prefix.lower() in [p.lower() for p in args.PREFIXES]
+                if args.IGNORE_PREFIXES:
+                    run_find_stack = not (
+                        prefix.lower() in [p.lower() for p in args.IGNORE_PREFIXES]
+                    )
+                if run_find_stack:
+                    stack_trace_str = find_stack(
+                        STACK_TRACE_MAP, prefix, msg, STACK_TRACE_COLORS, log_time, args=args
+                    )
+            the_dict = dict(zip(the_keys, the_values))
+            fd = nested_dicts(the_dict)
+            (thing_to_print, change_detected) = nice_print(args, fd, colors, rawline=line)
+            if not thing_to_print:
+                continue
+            if FORCE_DISABLE_PRINT or args.disable:
+                continue
+            # THE PRINT
+            if stack_trace_str:
+                thing_to_print = stack_trace_str + "\n" + thing_to_print
+            if args.linespace > 1:
+                thing_to_print = thing_to_print + "\n" * args.linespace
+            # if len(MESSAGE_BUFFER) == MESSAGE_BUFFER_SIZE:
+            #     MESSAGE_BUFFER = []
+            # MESSAGE_BUFFER.append(thing_to_print)
+            # print(MESSAGE_BUFFER[-1])
+            print(thing_to_print)
 
-        # CAPTURE RECORDING TO FILE
-        if args.ALLOW_RECORD and IS_RECORDING:
-            record_file_path = os.path.join(args.RECORD_DIR, RECORD_FILE_NAME)
-            write_to_file = True
-            if args.RECORD_KEYS_DIFF:
-                write_to_file = change_detected
-            with open(record_file_path, "a") as f:
-                if write_to_file:
-                    f.write(thing_to_print + "\n")
-
+            # CAPTURE RECORDING TO FILE
+            if args.ALLOW_RECORD and IS_RECORDING:
+                record_file_path = os.path.join(args.RECORD_DIR, RECORD_FILE_NAME)
+                write_to_file = True
+                if args.RECORD_KEYS_DIFF:
+                    write_to_file = change_detected
+                with open(record_file_path, "a") as f:
+                    if write_to_file:
+                        f.write(thing_to_print + "\n")
+    except:
+        print_exc();
 
 def on_press(key):
     global IS_RECORDING
