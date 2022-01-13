@@ -1,605 +1,26 @@
-import sys, os, json, re
-import argparse
+import os, json
 import json
 import time
 import random
 from pynput import keyboard
 from colorama import init, Fore, Style, Back
-from collections import defaultdict
 from functools import reduce
 from threading import Thread, Event
-
+from nicelogcat.utils import *
+from nicelogcat.args import get_args
 
 FORCE_DISABLE_PRINT = False
 
-COLOR_STRS = [
-    "BLACK",
-    "BLUE",
-    "CYAN",
-    "GREEN",
-    "MAGENTA",
-    "RED",
-    "WHITE",
-    "YELLOW",
-]
-
-
-FORE_COLORS = [
-    Fore.YELLOW,
-    Fore.WHITE,
-    Fore.BLUE,
-    Fore.CYAN,
-    Fore.GREEN,
-    Fore.MAGENTA,
-    Fore.RED,
-    Fore.LIGHTBLUE_EX,
-    Fore.LIGHTCYAN_EX,
-    Fore.LIGHTGREEN_EX,
-    Fore.LIGHTMAGENTA_EX,
-    Fore.LIGHTRED_EX,
-    Fore.LIGHTWHITE_EX,
-    Fore.LIGHTYELLOW_EX,
-    Fore.BLACK,
-    Fore.LIGHTBLACK_EX,
-]
-
-BACK_COLORS = [
-    Back.BLACK,
-    Back.BLUE,
-    Back.CYAN,
-    Back.GREEN,
-    Back.MAGENTA,
-    Back.RED,
-    Back.WHITE,
-    Back.YELLOW,
-    Back.LIGHTBLACK_EX,
-    Back.LIGHTBLUE_EX,
-    Back.LIGHTCYAN_EX,
-    Back.LIGHTGREEN_EX,
-    Back.LIGHTMAGENTA_EX,
-    Back.LIGHTRED_EX,
-    Back.LIGHTWHITE_EX,
-    Back.LIGHTYELLOW_EX,
-]
-
-COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
-
-ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
-
-LOG_LEVEL_CHOICES = {
-    "e": "ERROR",
-    "error": "ERROR",
-    "ERROR": "ERROR",
-    "w": "WARN",
-    "warn": "WARN",
-    "WARN": "WARN",
-    "d": "DEBUG",
-    "debug": "DEBUG",
-    "DEBUG": "DEBUG",
-    "i": "INFO",
-    "info": "INFO",
-    "INFO": "INFO",
-}
-
-
-def flatten_list(l):
-    unique = set([x for x in reduce(lambda x, y: x + y, l) if x])
-
-    return list(unique)
-
-
-parser = argparse.ArgumentParser(description="Bleh")
-parser.add_argument(dest="filterz", nargs="*", type=str, help="List of filters")
-parser.add_argument("--title", default="", type=str, help="Title to show")
-parser.add_argument(
-    "--suspend-util", default=None, type=str, help="Suspend until this is found"
-)
-parser.add_argument(
-    "--spacer",
-    default="space",
-    choices=["newline", "space", "tab", "pipe"],
-    help="spacer to use",
-)
-parser.add_argument(
-    "--linespace", type=int, default=0, help="Number of spaces between lines"
-)
-parser.add_argument("--divider", action="store_true", help="Add a divider per line")
-parser.add_argument("--disable", action="store_true", help="Disable Print")
-parser.add_argument("--flat", action="store_true", help="Flat")
-parser.add_argument(
-    "--title-in-header", action="store_true", help="Add title to header"
-)
-parser.add_argument("--raw", action="store_true", help="Include raw line")
-parser.add_argument(
-    "--show-title-every-line", action="store_true", help="Show title every line"
-)
-parser.add_argument(
-    "--title-line-color",
-    default=Fore.BLUE,
-    choices=COLOR_STRS,
-    help="Color to use if showing title every line",
-)
-parser.add_argument("--per-line", type=int, default=4, help="Keys per line")
-parser.add_argument(
-    "--time-per-secs",
-    type=int,
-    default=0,
-    help="Will time how many logs called every [internal] secs",
-)
-
-parser.add_argument(
-    "--header-spacer",
-    default="space",
-    choices=["newline", "space"],
-    help="Heading spacer between log",
-)
-parser.add_argument(
-    "--filterout",
-    action="append",
-    nargs="*",
-    default=None,
-    type=str,
-    help="List of filters to filter out",
-)
-parser.add_argument(
-    "--keys",
-    action="append",
-    nargs="*",
-    required=False,
-    default=None,
-    help="Highlight keys",
-)
-parser.add_argument(
-    "--highlight",
-    nargs="*",
-    action="append",
-    required=False,
-    default=None,
-    help="Highlight these phrase",
-)
-parser.add_argument(
-    "--h",
-    nargs="*",
-    action="append",
-    required=False,
-    default=None,
-    help="Highlight these phrase",
-)
-parser.add_argument("--record-dir", type=str, default=None, help="Record Directory")
-parser.add_argument(
-    "--record-keys",
-    action="append",
-    nargs="*",
-    required=False,
-    default=None,
-    help="When recording, only record when these keys change",
-)
-parser.add_argument(
-    "--filters",
-    action="append",
-    nargs="*",
-    default=None,
-    type=str,
-    help="List of filters",
-)
-parser.add_argument(
-    "--filter-any", action="store_true", help="Filters allow for any of the terms"
-)
-parser.add_argument(
-    "--any", action="store_true", help="Filters allow for any of the terms"
-)
-parser.add_argument("--stacktrace", action="store_true", help="Find Stack Traces")
-parser.add_argument(
-    "-l",
-    "--level",
-    action="append",
-    choices=list(LOG_LEVEL_CHOICES.keys()),
-    default=None,
-    type=str,
-    help="Only these levels",
-)
-parser.add_argument(
-    "-p",
-    "--prefix",
-    action="append",
-    nargs="*",
-    default=None,
-    type=str,
-    help="Only these Prefix",
-)
-parser.add_argument(
-    "--ignore-prefix",
-    action="append",
-    nargs="*",
-    default=None,
-    type=str,
-    help="Ignore These Prefix",
-)
-parser.add_argument(
-    "--ignore-keys",
-    action="append",
-    nargs="*",
-    default=None,
-    type=str,
-    help="Ignore These Keys",
-)
-parser.add_argument(
-    "--num-stack-traces",
-    help="Default -1 is all. Choose a number for how many stack trace lines to show",
-)
-
-
-args = parser.parse_args()
-
-DIVIDER_SIZE = 60
-SHOW_ARGS = False
-
+IS_RECORDING = False
+INIT_NOT_RECORDING_STATE = True
+RECORD_KEY = keyboard.Key.f12
+RECORD_FILE_NAME = "0.log"
+RECORD_DIR = ""
 init(autoreset=True)
 INPUT = open(0, "rb")
 # INPUT = sys.stdin
 # for line in INPUT:
 #     print(line)
-
-DIVIDER = "-" * DIVIDER_SIZE
-path_regex = r"(\/.*?\.[\w:]+)"
-SKIP_UNTIL_REPEAT = 25
-MAX_MEMOIZED_MESSAGES = 200
-MEMOIZED_MESSAGES = defaultdict(int)
-TIME_SEPARATOR = "\n"
-HIGHLIGHT_KEYS = []
-HIGHLIGHT_PHRASES = []
-IGNORE_KEYS = []
-PREFIXES = []
-IGNORE_PREFIXES = []
-LEVELS = []
-FILTERS = []
-FILTERZ = []
-FILTER_OUT = []
-PER_LINE = -1
-KEY_COUNT = 1
-WILL_COUNT = False
-TIMING_SECONDS_INTERVAL = None
-COUNTED_LOGS = 0
-HEADER_SPACER = None
-t0 = time.time()
-t1 = None
-ALLOW_RECORD = True
-RECORD_KEY = keyboard.Key.f12
-RECORD_DIR = None
-IS_RECORDING = False
-INIT_NOT_RECORDING_STATE = True
-RECORD_FILE_NAME = "0.log"
-RECORD_KEYS_DIFF = []
-PREV_RECORDED_STRING_DICT = {}
-FIND_STACKTRACES = False
-NUM_STACK_TRACES_TO_PRINT = 6
-PREV_MSGS_BEFORE_STACK_TRACE = 6
-LEFT_OF_KEY_VALUE = "["
-RIGHT_OF_KEY_VALUE = "]"
-
-SPACER = " "
-if args.spacer == "newline":
-    SPACER = "\n"
-elif args.spacer == "space":
-    SPACER = " "
-elif args.spacer == "tab":
-    SPACER = "\t"
-elif args.spacer == "pipe":
-    SPACER = " | "
-else:
-    pass
-
-
-if args.per_line:
-    PER_LINE = args.per_line
-    if SHOW_ARGS:
-        print("PER_LINE: {}".format(PER_LINE))
-if args.keys:
-    HIGHLIGHT_KEYS = flatten_list(args.keys)
-    if SHOW_ARGS:
-        print("HIGHLIGHT_KEYS: {}".format([k for k in HIGHLIGHT_KEYS]))
-if args.ignore_keys:
-    IGNORE_KEYS = flatten_list(args.ignore_keys)
-    if SHOW_ARGS:
-        print("IGNORE_KEYS: {}".format([k for k in IGNORE_KEYS]))
-if args.prefix:
-    PREFIXES = flatten_list(args.prefix)
-    if SHOW_ARGS:
-        print("PREFIXES: {}".format([k for k in PREFIXES]))
-if args.ignore_prefix:
-    IGNORE_PREFIXES = flatten_list(args.ignore_prefix)
-    if SHOW_ARGS:
-        print("IGNORE_PREFIXES: {}".format([k for k in IGNORE_PREFIXES]))
-if args.level:
-    LEVELS = [LOG_LEVEL_CHOICES[l] for l in args.level]
-    if SHOW_ARGS:
-        print("LEVELS: {}".format([k for k in LEVELS]))
-FILTERZ = args.filterz if args.filterz else []
-if args.filters or FILTERZ:
-    FILTERS = []
-    if args.filters:
-        FILTERS = flatten_list(args.filters)
-    FILTERS = FILTERS + FILTERZ
-    HIGHLIGHT_PHRASES += FILTERS
-    if SHOW_ARGS:
-        print("FILTERS: {}".format([k for k in FILTERS]))
-if args.highlight or HIGHLIGHT_PHRASES or args.h:
-    HIGHLIGHT_PHRASES = (
-        flatten_list(args.highlight) if args.highlight else [] + HIGHLIGHT_PHRASES
-    )
-    if args.h:
-        HIGHLIGHT_PHRASES += flatten_list(args.h)
-    if SHOW_ARGS:
-        print("HIGHLIGHT_PHRASES: {}".format([k for k in HIGHLIGHT_PHRASES]))
-if args.filterout:
-    FILTER_OUT = flatten_list(args.filterout)
-    if SHOW_ARGS:
-        print("FILTER_OUT: {}".format([k for k in FILTER_OUT]))
-if args.header_spacer == "newline":
-    HEADER_SPACER = "\n"
-else:
-    HEADER_SPACER = " " * 4
-if args.time_per_secs > 0:
-    WILL_COUNT = True
-    TIMING_SECONDS_INTERVAL = args.time_per_secs
-    if SHOW_ARGS:
-        print("TIMING NUMBER OF LOGS PER: {} seconds".format(TIMING_SECONDS_INTERVAL))
-if ALLOW_RECORD:
-    if SHOW_ARGS:
-        print(
-            "Recording enabled. Use {} to trigger record start/stop".format(RECORD_KEY)
-        )
-    if not args.record_dir:
-        RECORD_DIR = os.getcwd()
-    else:
-        RECORD_DIR = args.record_dir
-    if not os.path.exists(RECORD_DIR):
-        raise ValueError(RECORD_DIR + " needs to exist")
-    if args.record_keys:
-        RECORD_KEYS_DIFF = flatten_list(args.record_keys)
-        HIGHLIGHT_KEYS + RECORD_KEYS_DIFF
-        if SHOW_ARGS:
-            print(
-                "Will record only if the following keys change: {}".format(
-                    ",".join(RECORD_KEYS_DIFF)
-                )
-            )
-if args.stacktrace:
-    FIND_STACKTRACES = True
-    if args.num_stack_traces and args.num_stack_traces > 0:
-        NUM_STACK_TRACES_TO_PRINT = int(args.num_stack_traces)
-    if SHOW_ARGS:
-        print("WILL FIND STACK TRACES")
-    if SHOW_ARGS:
-        print("NUM stack trace lines: {}".format(NUM_STACK_TRACES_TO_PRINT))
-if args.flat:
-    args.linespace = 0
-    PER_LINE = -1
-    args.divider = False
-    LEFT_OF_KEY_VALUE = ""
-    RIGHT_OF_KEY_VALUE = ""
-    HEADER_SPACER = ""
-
-
-def norm_str(some_str):
-    some_str = some_str.strip()
-    some_str = some_str.replace('"', "")
-    some_str = some_str.replace("'", "")
-    some_str = some_str.replace("\\", "")
-    return some_str
-
-
-def norm_str2(some_str):
-    some_str = some_str.replace("\\n", "\n")
-    some_str = some_str.replace("\\", "")
-    some_str = some_str.replace('""', '"')
-    some_str = some_str.replace("''", "'")
-    some_str = some_str.replace('":"', '": "')
-    return some_str
-
-
-def norm_str3(some_str):
-    some_str = some_str.strip()
-    if not some_str:
-        return ""
-    bad_chars = ":\\/\\'\""
-    if some_str[0] in bad_chars:
-        some_str = some_str[1:]
-    if len(some_str) > 1 and some_str[-1] in bad_chars:
-        some_str = some_str[0:-1]
-    return some_str
-
-
-def get_log_level(log_level, colors):
-    if log_level.lower() == "w":
-        return colors["LEVEL_WARN_COLOR"] + "WARN" + Style.RESET_ALL
-    elif log_level.lower() == "e":
-        return colors["LEVEL_ERROR_COLOR"] + "ERROR" + Style.RESET_ALL
-    elif log_level.lower() == "d":
-        return colors["LEVEL_WARN_COLOR"] + "DEBUG" + Style.RESET_ALL
-    elif log_level.lower() == "i":
-        return colors["LEVEL_INFO_COLOR"] + "INFO" + Style.RESET_ALL
-    elif log_level.lower() == "v":
-        return colors["LEVEL_INFO_COLOR"] + "VERBOSE" + Style.RESET_ALL
-    elif log_level.lower() == "f":
-        return colors["LEVEL_ERROR_COLOR"] + "FATAL" + Style.RESET_ALL
-    elif log_level.lower() == "s":
-        return Fore.BLACK + "SILENT" + Style.RESET_ALL
-    else:
-        raise ValueError("Unknown log_level found: {}".format(log_level))
-
-
-def remove_col_from_val(val):
-    new_val = val
-    for col in ALL_COLORS:
-        if col in val:
-            new_val = new_val.replace(col, "")
-    return new_val
-
-
-def style(val, min_len=None, color=None):
-    if not val or not isinstance(val, str):
-        return val
-    new_val = remove_col_from_val(val)
-    new_val_len = len(new_val)
-    spacer = " "
-    if min_len:
-        if new_val_len < min_len:
-            new_val = val + spacer * (min_len - new_val_len)
-        else:
-            raise ValueError(
-                "orig_val: {} new_val: {} has length: {} which is bigger than {}".format(
-                    val, new_val, new_val_len, min_len
-                )
-            )
-    if color:
-        val = color + val + Style.RESET_ALL
-    return val
-
-
-def nested_dicts(some_dict, level=0):
-    new_dict = {}
-    for k, v in some_dict.items():
-        value = None
-        try:
-            value = json.loads(v)
-        except:
-            value = v
-        if not isinstance(value, dict):
-            new_dict[k] = v
-            continue
-        for subk, subv in value.items():
-            if isinstance(subv, dict):
-                new_dict[subk] = nested_dicts(subv, level=level + 1)
-            else:
-                if subk in new_dict.keys():
-                    continue
-                    # subk = f"{subk}_{level}"
-                new_dict[subk] = subv
-    return new_dict
-
-
-def nice_print_dict(
-    key_count, top_spacer, some_dict, key_color, value_color, spacer=SPACER
-):
-    nice_str = ""
-    nice_strings = []
-
-    for k, v in some_dict.items():
-        if isinstance(v, dict):
-            (new_key_count, nice_str) = nice_print_dict(
-                key_count, top_spacer, v, key_color, value_color, spacer
-            )
-
-            nice_strings.append(nice_str)
-            key_count = new_key_count
-        else:
-            if IGNORE_KEYS:
-                if k in IGNORE_KEYS:
-                    continue
-            spacer = ""
-            if PER_LINE != -1:
-                if key_count % PER_LINE == 0:
-                    spacer = top_spacer
-                else:
-                    spacer = ""
-            nice_strings.append(
-                spacer
-                + SPACER
-                + "{}{}: {}{}".format(
-                    LEFT_OF_KEY_VALUE,
-                    style(k, color=key_color),
-                    style(v, color=value_color),
-                    RIGHT_OF_KEY_VALUE,
-                )
-            )
-            key_count += 1
-    if nice_strings:
-        nice_str = spacer.join([x for x in nice_strings if x])
-    return (key_count, nice_str)
-
-
-def find_dict_in_v(v, rawline=None):
-    if "{" in v and "}" in v:
-        first_bracket_idx = v.find("{")
-        last_bracket_idx = v.rfind("}")
-        json_str = v[first_bracket_idx : last_bracket_idx + 1]
-        try:
-            val = json.loads(json_str)
-            return val
-        except Exception as e:
-            return {}
-
-    else:
-        return {}
-
-
-def flatten_dict(d):
-    new_dict = {}
-    if isinstance(d, dict):
-        for k, v in d.items():
-            if isinstance(v, dict):
-                flatten_dict(v)
-            else:
-                new_dict[k] = v
-    return new_dict
-
-
-def find_stack(stack_trace_map, pfix, message, stack_trace_colors, log_time):
-    stack_trace_str = ""
-    if not pfix or (PREFIXES and pfix not in PREFIXES):
-        return ""
-    if pfix not in stack_trace_map:
-        stack_trace_map[pfix] = {
-            "prefixes": [],
-            "stacktraces": [],
-            "started": False
-            # "flushed": False
-        }
-        stack_trace_colors[pfix] = FORE_COLORS[random.randint(2, 11)]
-    message = message.strip()
-    is_a_stack_trace = message.startswith("at ")
-    if is_a_stack_trace:
-        if not stack_trace_map[pfix]["started"]:
-            stack_trace_map[pfix]["started"] = True
-        stack_trace_map[pfix]["stacktraces"].append(message)
-    else:
-        stack_trace_map[pfix]["prefixes"].append(message)
-        if (
-            stack_trace_map[pfix]["started"]
-            and len(stack_trace_map[pfix]["stacktraces"]) > 0
-        ):
-            stack_trace_str = clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time)
-    if len(stack_trace_map[pfix]["prefixes"]) == PREV_MSGS_BEFORE_STACK_TRACE:
-        stack_trace_map[pfix]["prefixes"] = []
-    return stack_trace_str
-
-
-def clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time):
-    stack_trace_str = DIVIDER + "\n"
-    stack_trace_str += (
-        style(pfix + " : " + log_time, color=stack_trace_colors[pfix]) + "]"
-    ) + "\n"
-    stack_trace_str += (
-        style(
-            "\n".join([x for x in stack_trace_map[pfix]["prefixes"] if x]),
-            color=Fore.YELLOW,
-        )
-        + "\n"
-    )
-    biggest_index = len(stack_trace_map[pfix]["stacktraces"]) - 1
-    num_stack_traces = min(NUM_STACK_TRACES_TO_PRINT, biggest_index)
-    continued_str = ""
-    if num_stack_traces < biggest_index:
-        continued_str = "...continued"
-    stack_trace_str += "\n\t" + (
-        "\n\t".join(stack_trace_map[pfix]["stacktraces"][:num_stack_traces])
-    ) + "\n"
-    stack_trace_str += (continued_str) + "\n"
-    stack_trace_map[pfix]["started"] = False
-    stack_trace_map[pfix]["prefixes"] = []
-    stack_trace_map[pfix]["stacktraces"] = []
-    return stack_trace_str
 
 
 def nice_print(args, fd, colors, rawline):
@@ -615,23 +36,23 @@ def nice_print(args, fd, colors, rawline):
     header_len = len(" ".join(header_pure_val))
     header_space_max = 33
     header_diff = header_space_max - header_len
-    header_line_str = " ".join(header_line_vals) + " " * header_diff + HEADER_SPACER
+    header_line_str = " ".join(header_line_vals) + " " * header_diff + args.HEADER_SPACER
     if args.flat:
         header_line_str = " ".join(header_line_vals)
     total_header_len = header_len + header_diff
     NESTED_SPACER = " "
     TOP_SPACER = (
-        "\n{}{}".format(HEADER_SPACER, " " * total_header_len) if not args.flat else " "
+        "\n{}{}".format(args.HEADER_SPACER, " " * total_header_len) if not args.flat else " "
     )
 
     level_val = remove_col_from_val(fd["level"])
     prefix_val = remove_col_from_val(fd["prefix"])
 
-    if args.level and any([level_val not in x for x in LEVELS]):
+    if args.level and any([level_val not in x for x in args.LEVELS]):
         return ("", False)
-    if args.prefix and any([prefix_val not in x for x in PREFIXES]) or not prefix_val:
+    if args.prefix and any([prefix_val not in x for x in args.PREFIXES]) or not prefix_val:
         return ("", False)
-    if args.ignore_prefix and any([prefix_val in x for x in IGNORE_PREFIXES]):
+    if args.ignore_prefix and any([prefix_val in x for x in args.IGNORE_PREFIXES]):
         return ("", False)
 
     string_list = []
@@ -654,7 +75,7 @@ def nice_print(args, fd, colors, rawline):
         k = key
         v = fd[key]
 
-        if IGNORE_KEYS and k in IGNORE_KEYS:
+        if args.IGNORE_KEYS and k in args.IGNORE_KEYS:
             continue
         if not v:
             continue
@@ -674,7 +95,7 @@ def nice_print(args, fd, colors, rawline):
                 v,
                 key_color=colors["K_COLOR"],
                 value_color=colors["V_COLOR"],
-                spacer=NESTED_SPACER,
+                args=args
             )
             key_count = new_key_count
             string_list.append(
@@ -697,7 +118,7 @@ def nice_print(args, fd, colors, rawline):
                 nested_d,
                 key_color=colors["K_COLOR"],
                 value_color=colors["V_COLOR"],
-                spacer=SPACER,
+                args=args
             )
             key_count = new_key_count
             if nested_d:
@@ -709,10 +130,10 @@ def nice_print(args, fd, colors, rawline):
                 string_dict[non_color_k] = v
                 string_list.append(
                     "{}{}: {}{}".format(
-                        LEFT_OF_KEY_VALUE,
+                        args.LEFT_OF_KEY_VALUE,
                         k,
                         style(v, color=colors["V_COLOR"]),
-                        RIGHT_OF_KEY_VALUE,
+                        args.RIGHT_OF_KEY_VALUE,
                     )
                 )
 
@@ -725,7 +146,7 @@ def nice_print(args, fd, colors, rawline):
         )
 
     will_print = True
-    result_str = SPACER.join([x for x in string_list if x])
+    result_str = args.SPACER.join([x for x in string_list if x])
     result_str_no_col = remove_col_from_val(result_str)
 
     string_dict = flatten_dict(string_dict)
@@ -734,10 +155,10 @@ def nice_print(args, fd, colors, rawline):
     change_detected = False
     if FORCE_DISABLE_PRINT or args.disable:
         will_print = False
-    if RECORD_KEYS_DIFF:
-        if not PREV_RECORDED_STRING_DICT:
+    if args.RECORD_KEYS_DIFF:
+        if not args.PREV_RECORDED_STRING_DICT:
             PREV_RECORDED_STRING_DICT = string_dict
-        for key in RECORD_KEYS_DIFF:
+        for key in args.RECORD_KEYS_DIFF:
             if key in string_dict and key in PREV_RECORDED_STRING_DICT:
                 if string_dict[key] != PREV_RECORDED_STRING_DICT[key]:
                     changed_keys.append(key)
@@ -751,34 +172,34 @@ def nice_print(args, fd, colors, rawline):
         for key in string_dict:
             PREV_RECORDED_STRING_DICT[key] = string_dict[key]
 
-    if RECORD_KEYS_DIFF and not change_detected:
+    if args.RECORD_KEYS_DIFF and not change_detected:
         will_print = False
         return False
 
-    if HIGHLIGHT_PHRASES:
-        for phrase in set(HIGHLIGHT_PHRASES):
+    if args.HIGHLIGHT_PHRASES:
+        for phrase in set(args.HIGHLIGHT_PHRASES):
             if phrase in result_str:
                 result_str = result_str.replace(
                     phrase, style(phrase, color=colors["HIGHLIGHT_COLOR"])
                 )
-    if FILTERS:
+    if args.FILTERS:
         if args.filter_any or args.any:
-            will_print = any([f.lower() in result_str_no_col.lower() for f in FILTERS])
+            will_print = any([f.lower() in result_str_no_col.lower() for f in args.FILTERS])
         else:
-            will_print = all([f.lower() in result_str_no_col.lower() for f in FILTERS])
-    if FILTER_OUT:
-        will_print = not any([f in result_str_no_col for f in FILTER_OUT])
+            will_print = all([f.lower() in result_str_no_col.lower() for f in args.FILTERS])
+    if args.FILTER_OUT:
+        will_print = not any([f in result_str_no_col for f in args.FILTER_OUT])
     count_str = ""
     if will_print:
-        if WILL_COUNT:
-            COUNTED_LOGS += 1
-            t1 = time.time()
-            if (t1 - t0) >= TIMING_SECONDS_INTERVAL:
-                t0 = t1
+        if args.WILL_COUNT:
+            args.COUNTED_LOGS += 1
+            args.t1 = time.time()
+            if (args.t1 - args.t0) >= args.TIMING_SECONDS_INTERVAL:
+                args.t0 = args.t1
                 count_str = (
                     style(
                         "Number of logs after {} seconds: {}".format(
-                            TIMING_SECONDS_INTERVAL, COUNTED_LOGS
+                            args.TIMING_SECONDS_INTERVAL, args.COUNTED_LOGS
                         ),
                         color=colors["TIMING_COLOR"],
                     )
@@ -787,28 +208,28 @@ def nice_print(args, fd, colors, rawline):
                 COUNTED_LOGS = 0
         divider_str = ""
         if args.divider:
-            divider_str = DIVIDER + "\n"
+            divider_str = args.DIVIDER + "\n"
 
         if args.title and args.show_title_every_line:
             timing_title = (
-                "🕒 ({} secs) ".format(TIMING_SECONDS_INTERVAL) if WILL_COUNT else ""
+                "🕒 ({} secs) ".format(args.TIMING_SECONDS_INTERVAL) if args.WILL_COUNT else ""
             )
             title_str = style(
                 "[{}{}]".format(timing_title, args.title),
                 color=Back.GREEN + Fore.BLACK,
             )
             header_line_str = title_str + "\n" + header_line_str
-        if ALLOW_RECORD and IS_RECORDING:
+        if args.ALLOW_RECORD and IS_RECORDING:
             header_line_str = "🟢" + " " + header_line_str
-        if ALLOW_RECORD and not IS_RECORDING:
+        if args.ALLOW_RECORD and not IS_RECORDING:
             header_line_str = "🔴" + " " + header_line_str
 
         # THE PRINT
         thing_to_print = (
-            divider_str + count_str + header_line_str + TOP_SPACER + SPACER + result_str
+            divider_str + count_str + header_line_str + TOP_SPACER + args.SPACER + result_str
         )
         if args.flat:
-            thing_to_print = count_str + header_line_str + SPACER + result_str.strip()
+            thing_to_print = count_str + header_line_str + args.SPACER + result_str.strip()
         return (thing_to_print, change_detected)
     return ("", False)
 
@@ -827,7 +248,6 @@ def main_loop(args, colors):
         parts = [x for x in line.split(" ") if x]
         if parts[0] == "---------":
             continue
-
         date = norm_str3(parts[0])
         timestamp = norm_str3(parts[1])
         pid = norm_str3(parts[2])
@@ -845,17 +265,17 @@ def main_loop(args, colors):
         ]
         stack_trace_str = ""
         # Stack Traces
-        if FIND_STACKTRACES:
+        if args.FIND_STACKTRACES:
             run_find_stack = True
-            if PREFIXES:
-                run_find_stack = prefix.lower() in [p.lower() for p in PREFIXES]
-            if IGNORE_PREFIXES:
+            if args.PREFIXES:
+                run_find_stack = prefix.lower() in [p.lower() for p in args.PREFIXES]
+            if args.IGNORE_PREFIXES:
                 run_find_stack = not (
-                    prefix.lower() in [p.lower() for p in IGNORE_PREFIXES]
+                    prefix.lower() in [p.lower() for p in args.IGNORE_PREFIXES]
                 )
             if run_find_stack:
                 stack_trace_str = find_stack(
-                    STACK_TRACE_MAP, prefix, msg, STACK_TRACE_COLORS, log_time
+                    STACK_TRACE_MAP, prefix, msg, STACK_TRACE_COLORS, log_time, args=args
                 )
         the_dict = dict(zip(the_keys, the_values))
         fd = nested_dicts(the_dict)
@@ -875,10 +295,10 @@ def main_loop(args, colors):
         print(MESSAGE_BUFFER[-1])
 
         # CAPTURE RECORDING TO FILE
-        if ALLOW_RECORD and IS_RECORDING:
-            record_file_path = os.path.join(RECORD_DIR, RECORD_FILE_NAME)
+        if args.ALLOW_RECORD and IS_RECORDING:
+            record_file_path = os.path.join(args.RECORD_DIR, RECORD_FILE_NAME)
             write_to_file = True
-            if RECORD_KEYS_DIFF:
+            if args.RECORD_KEYS_DIFF:
                 write_to_file = change_detected
             with open(record_file_path, "a") as f:
                 if write_to_file:
@@ -911,7 +331,9 @@ def on_press(key):
 
 
 def main():
-
+    global RECORD_DIR
+    args = get_args()
+    RECORD_DIR = args.RECORD_DIR
     colors = {
         "HEADER_STR_COLOR": Back.YELLOW + Fore.BLACK,
         "LEVEL_WARN_COLOR": Back.BLACK + Fore.YELLOW,
@@ -929,7 +351,7 @@ def main():
         "TIMING_COLOR": Back.RED + Fore.BLACK,
         "DETECTED_CHANGE_COLOR": Back.RED + Fore.BLACK,
     }
-    if ALLOW_RECORD:
+    if args.ALLOW_RECORD:
         with keyboard.Listener(on_press=on_press) as listener:
             try:
                 main_loop(args, colors)
@@ -938,9 +360,6 @@ def main():
                 pass
     else:
         main_loop(args, colors)
-
-
-
 
 
 if __name__ == "__main__":
