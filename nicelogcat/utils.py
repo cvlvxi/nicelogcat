@@ -1,6 +1,5 @@
 from functools import reduce
-from re import I
-from colorama import init, Fore, Style, Back
+from colorama import Fore, Style, Back
 import json
 import random
 
