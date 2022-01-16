@@ -1,7 +1,8 @@
 import sys
+from pynput import keyboard
 from colorama import Fore, Back
 from nicelogcat.args import get_args
-from nicelogcat.logcat import main_loop
+from nicelogcat.logcat import main_loop, on_press
 
 def main():
     args = get_args()
@@ -23,15 +24,15 @@ def main():
         "DETECTED_CHANGE_COLOR": Back.RED + Fore.BLACK,
     }
     args.colors = colors
-    # if args.ALLOW_RECORD:
-    #     with keyboard.Listener(on_press=on_press) as listener:
-    #         try:
-    #             main_loop(args)
-    #             listener.join()
-    #         except:
-    #             pass
-    # else:
-    main_loop(args, stream=sys.stdin.buffer.raw)
+    if args.ALLOW_RECORD:
+        with keyboard.Listener(on_press=on_press) as listener:
+            try:
+                main_loop(args, stream=sys.stdin.buffer.raw)
+                listener.join()
+            except:
+                pass
+    else:
+        main_loop(args, stream=sys.stdin.buffer.raw)
 
 
 if __name__ == "__main__":

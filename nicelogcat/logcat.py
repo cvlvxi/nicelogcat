@@ -6,6 +6,7 @@ from colorama import init, Fore, Back
 from nicelogcat.utils import *
 from pynput import keyboard
 from traceback import print_exc
+from typing import BinaryIO
 
 init(autoreset=True)
 INIT_NOT_RECORDING_STATE = True
@@ -17,8 +18,10 @@ IS_RECORDING = False
 TITLE = ""
 
 
-def main_loop(args: dict, stream = sys.stdin.buffer.raw):
+def main_loop(args: dict, stream: BinaryIO):
     global TITLE
+    global RECORD_DIR
+    RECORD_DIR = args.record_dir
     TITLE = args.title.lower().replace(" ", "_") if args.title else ""
     try:
         STACK_TRACE_MAP = {}
@@ -39,7 +42,7 @@ def main_loop(args: dict, stream = sys.stdin.buffer.raw):
             prefix = norm_str3(parts[5]).strip()
             msg = norm_str3(" ".join(parts[6:]))
             log_time = style(date + " " + timestamp,
-                            color=args.colors["TIME_COLOR"], min_len=20)
+                             color=args.colors["TIME_COLOR"], min_len=20)
             the_keys = ["level", "prefix", "log_time", "pid", "message"]
             the_values = [
                 style(log_level, min_len=10),
@@ -58,7 +61,7 @@ def main_loop(args: dict, stream = sys.stdin.buffer.raw):
                 if args.IGNORE_PREFIXES:
                     run_find_stack = not (
                         prefix.lower() in [p.lower()
-                                        for p in args.IGNORE_PREFIXES]
+                                           for p in args.IGNORE_PREFIXES]
                     )
                 if run_find_stack:
                     stack_trace_str = find_stack(
