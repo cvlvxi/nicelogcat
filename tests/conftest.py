@@ -51,3 +51,24 @@ def args_title() -> ArgumentParser:
         '--title', 'hello'
     ])))
     return args
+
+
+@pytest.fixture()
+def args_filter_all() -> ArgumentParser:
+    parser = ncparser()
+    args = post_process_args(add_defaults(get_args(parser, [
+        '-f', 'file',
+        '-f', 'not'
+    ])))
+    return args
+
+
+@pytest.fixture()
+def args_filter_any() -> ArgumentParser:
+    parser = ncparser()
+    args = post_process_args(add_defaults(get_args(parser, [
+        '-f', 'file',
+        '-f', 'not',
+        '--any'
+    ])))
+    return args
