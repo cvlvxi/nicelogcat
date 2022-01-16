@@ -3,14 +3,14 @@ import argparse
 import time
 import os
 from colorama import Fore
-from nicelogcat.utils import *
 from collections import defaultdict
+from .utils import *
 
 
 SHOW_ARGS = False
 
 
-def get_args() -> argparse.ArgumentParser:
+def ncparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="nicelogcat")
     parser.add_argument(dest="filterz", nargs="*",
                         type=str, help="List of filters")
@@ -158,8 +158,15 @@ def get_args() -> argparse.ArgumentParser:
         "--num-stack-traces",
         help="Default -1 is all. Choose a number for how many stack trace lines to show",
     )
+    return parser
 
-    args = parser.parse_args()
+
+def get_args(parser: argparse.ArgumentParser, *args) -> argparse.ArgumentParser:
+
+    if args:
+        args = parser.parse_args(*args)
+    else:
+        args = parser.parse_args()
 
     args.DIVIDER_SIZE = 60
 
@@ -189,7 +196,7 @@ def get_args() -> argparse.ArgumentParser:
     args.WILL_COUNT = False
     args.TIMING_SECONDS_INTERVAL = None
     args.COUNTED_LOGS = 0
-    args.HEADER_SPACER = None
+    args.HEADER_SPACER = " "
     args.t0 = time.time()
     args.t1 = None
     args.ALLOW_RECORD = True
@@ -201,6 +208,11 @@ def get_args() -> argparse.ArgumentParser:
     args.PREV_MSGS_BEFORE_STACK_TRACE = 6
     args.LEFT_OF_KEY_VALUE = "["
     args.RIGHT_OF_KEY_VALUE = "]"
+
+    return args
+
+
+def post_process_args(args: dict):
 
     if args.spacer == "newline":
         args.spacer = "\n"
@@ -310,3 +322,8 @@ def get_args() -> argparse.ArgumentParser:
         args.RIGHT_OF_KEY_VALUE = ""
         args.HEADER_SPACER = ""
     return args
+
+
+def main_args():
+    args = get_args(ncparser())
+    return post_process_args(args)

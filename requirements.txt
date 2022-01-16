@@ -1,4 +1,4 @@
 colorama
 pynput
-
+pytest
 

@@ -1,11 +1,13 @@
 import sys
+import traceback
 from pynput import keyboard
 from colorama import Fore, Back
-from nicelogcat.args import get_args
-from nicelogcat.logcat import main_loop, on_press
+from .args import main_args, ncparser
+from .logcat import main_loop, on_press
+
 
 def main():
-    args = get_args()
+    args = main_args()
     colors = {
         "HEADER_STR_COLOR": Back.YELLOW + Fore.BLACK,
         "LEVEL_WARN_COLOR": Back.BLACK + Fore.YELLOW,
@@ -27,12 +29,15 @@ def main():
     if args.ALLOW_RECORD:
         with keyboard.Listener(on_press=on_press) as listener:
             try:
+                for log in main_loop(args, stream=sys.stdin.buffer.raw):
+                    print(log)
                 main_loop(args, stream=sys.stdin.buffer.raw)
                 listener.join()
-            except:
-                pass
+            except Exception as ex:
+                print(traceback.print_exc())
     else:
-        main_loop(args, stream=sys.stdin.buffer.raw)
+        for log in main_loop(args, stream=sys.stdin.buffer.raw):
+            print(log)
 
 
 if __name__ == "__main__":

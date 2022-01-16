@@ -78,6 +78,7 @@ def flatten_list(l):
 
     return list(unique)
 
+
 def norm_str(some_str):
     some_str = some_str.strip()
     some_str = some_str.replace('"', "")
@@ -107,9 +108,6 @@ def norm_str3(some_str):
     return some_str
 
 
-
-
-
 def get_log_level(log_level, colors):
     if log_level.lower() == "w":
         return colors["LEVEL_WARN_COLOR"] + "WARN" + Style.RESET_ALL
@@ -137,7 +135,7 @@ def remove_col_from_val(val):
     return new_val
 
 
-def style(val, min_len=None, color=None):
+def style(val: str, min_len: int = None, color=None):
     if not val or not isinstance(val, str):
         return val
     new_val = remove_col_from_val(val)
@@ -157,7 +155,7 @@ def style(val, min_len=None, color=None):
     return val
 
 
-def nested_dicts(some_dict, level=0):
+def nested_dicts(some_dict: dict, level: int = 0):
     new_dict = {}
     for k, v in some_dict.items():
         value = None
@@ -230,7 +228,7 @@ def find_dict_in_v(v, rawline=None):
             first_bracket_idx = v.find("{")
             last_bracket_idx = v.rfind("}")
             v = v.replace("'", '"')
-            json_str = v[first_bracket_idx : last_bracket_idx + 1]
+            json_str = v[first_bracket_idx: last_bracket_idx + 1]
             try:
                 val = json.loads(json_str)
                 return val
@@ -274,7 +272,8 @@ def find_stack(stack_trace_map, pfix, message, stack_trace_colors, log_time, arg
             stack_trace_map[pfix]["started"]
             and len(stack_trace_map[pfix]["stacktraces"]) > 0
         ):
-            stack_trace_str = clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time, args=args)
+            stack_trace_str = clear_stack(
+                stack_trace_map, pfix, stack_trace_colors, log_time, args=args)
     if len(stack_trace_map[pfix]["prefixes"]) == args.PREV_MSGS_BEFORE_STACK_TRACE:
         stack_trace_map[pfix]["prefixes"] = []
     return stack_trace_str

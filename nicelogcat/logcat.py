@@ -1,12 +1,11 @@
 import time
 import os
-import sys
 from typing import Tuple, Optional
 from colorama import init, Fore, Back
-from nicelogcat.utils import *
 from pynput import keyboard
 from traceback import print_exc
 from typing import BinaryIO
+from .utils import *
 
 init(autoreset=True)
 INIT_NOT_RECORDING_STATE = True
@@ -84,8 +83,6 @@ def main_loop(args: dict, stream: BinaryIO):
                 thing_to_print = stack_trace_str + "\n" + thing_to_print
             if args.linespace > 1:
                 thing_to_print = thing_to_print + "\n" * args.linespace
-            print(thing_to_print)
-
             # CAPTURE RECORDING TO FILE
             if args.ALLOW_RECORD and IS_RECORDING:
                 record_file_path = os.path.join(
@@ -96,6 +93,14 @@ def main_loop(args: dict, stream: BinaryIO):
                 with open(record_file_path, "a") as f:
                     if write_to_file:
                         f.write(thing_to_print + "\n")
+            yield thing_to_print
+
+
+    except StopIteration as st_exc:
+        pass
+    except KeyboardInterrupt as kb_exc:
+        import sys
+        sys.exit(1)
     except:
         print_exc()
 
@@ -117,8 +122,7 @@ def nice_print(
     header_len = len(" ".join(header_pure_val))
     header_space_max = 33
     header_diff = header_space_max - header_len
-    header_line_str = " ".join(header_line_vals) + \
-        " " * header_diff + args.HEADER_SPACER
+    header_line_str = " ".join(header_line_vals) + " " * header_diff + args.HEADER_SPACER
     if args.flat:
         header_line_str = " ".join(header_line_vals)
     total_header_len = header_len + header_diff
