@@ -260,7 +260,6 @@ def nice_print(
     if args.RECORD_KEYS_DIFF and not change_detected:
         will_print = False
         return ('', False)
-
     if args.HIGHLIGHT_PHRASES:
         for phrase in set(args.HIGHLIGHT_PHRASES):
             if phrase in result_str:
@@ -308,7 +307,7 @@ def nice_print(
                 "[{}{}]".format(timing_title, args.title),
                 color=Back.GREEN + Fore.BLACK,
             )
-            header_line_str = title_str + "\n" + header_line_str
+            header_line_str = title_str + " " + header_line_str
         if args.ALLOW_RECORD and is_recording:
             header_line_str = "🟢" + " " + header_line_str
         if args.ALLOW_RECORD and not is_recording:

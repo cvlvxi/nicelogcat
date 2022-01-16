@@ -32,13 +32,7 @@ def ncparser() -> argparse.ArgumentParser:
     parser.add_argument("--disable", action="store_true", help="Disable Print")
     parser.add_argument("--flat", action="store_true", help="Flat")
     parser.add_argument("--no-flat", action="store_true", help="No Flat")
-    parser.add_argument(
-        "--title-in-header", action="store_true", help="Add title to header"
-    )
     parser.add_argument("--raw", action="store_true", help="Include raw line")
-    parser.add_argument(
-        "--show-title-every-line", action="store_true", help="Show title every line"
-    )
     parser.add_argument(
         "--title-line-color",
         default=Fore.BLUE,
@@ -175,7 +169,7 @@ def get_args(parser: argparse.ArgumentParser, *args) -> argparse.ArgumentParser:
     args.BACK_COLORS = BACK_COLORS
     args.COLOR_RESETTERS = COLOR_RESETTERS
     args.ALL_COLORS = ALL_COLORS
-
+    args.TITLE = ""
     args.SPACER = " "
     args.DIVIDER = "-" * args.DIVIDER_SIZE
     args.SKIP_UNTIL_REPEAT = 25
@@ -224,7 +218,9 @@ def post_process_args(args: dict):
         args.spacer = " | "
     else:
         pass
-
+    if args.title:
+        args.show_title_every_line = True
+        args.TITLE = args.title
     if args.per_line:
         args.PER_LINE = args.per_line
         if SHOW_ARGS:
