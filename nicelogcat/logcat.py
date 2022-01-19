@@ -98,6 +98,7 @@ async def main_loop(args: dict, stream: BinaryIO) -> Output:
         pass
     except KeyboardInterrupt:
         import sys
+
         sys.exit(1)
     except Exception:
         print_exc()
@@ -135,6 +136,8 @@ def nice_print(
     prefix_val = utils.remove_col_from_val(linedict["prefix"])
     log_time = utils.remove_col_from_val(linedict["log_time"])
     readable_time: datetime = datetime.strptime(log_time, "%m-%d %H:%M:%S.%f")
+    value_col = args.colors["V_COLOR"]
+
     # Assume current year?
     new_datetime = datetime(
         year=datetime.now().year,
@@ -150,11 +153,12 @@ def nice_print(
         utils.rand_prefix_colors(STACK_TRACE_COLORS, prefix_val)
         prefix_col = STACK_TRACE_COLORS[prefix_val]
         if args.random:
-            header_line_vals[0] = utils.style(prefix_val, color=prefix_col[1])
+            chosen_col = prefix_col[1]
         elif args.randomb:
-            header_line_vals[0] = utils.style(
-                prefix_val,
-                color=prefix_col[0] + Fore.BLACK)
+            chosen_col = prefix_col[0] + Fore.BLACK
+        header_line_vals[0] = utils.style(prefix_val, color=chosen_col)
+        if args.random_msg:
+            value_col = chosen_col
 
     if args.level and any([level_val not in x for x in args.LEVELS]):
         return Output.default()
@@ -214,7 +218,7 @@ def nice_print(
                 TOP_SPACER,
                 v,
                 key_color=args.colors["K_COLOR"],
-                value_color=args.colors["V_COLOR"],
+                value_color=value_col,
                 args=args,
             )
             key_count = new_key_count
@@ -237,7 +241,7 @@ def nice_print(
                 TOP_SPACER,
                 nested_d,
                 key_color=args.colors["K_COLOR"],
-                value_color=args.colors["V_COLOR"],
+                value_color=value_col,
                 args=args,
             )
             key_count = new_key_count
@@ -252,7 +256,7 @@ def nice_print(
                     "{}{}: {}{}".format(
                         args.LEFT_OF_KEY_VALUE,
                         k,
-                        utils.style(v, color=args.colors["V_COLOR"]),
+                        utils.style(v, color=value_col),
                         args.RIGHT_OF_KEY_VALUE,
                     )
                 )
@@ -261,7 +265,7 @@ def nice_print(
         string_list.append(
             "[{}: {}]".format(
                 utils.style("rawline", color=args.colors["K_COLOR"]),
-                utils.style(rawline, color=args.colors["V_COLOR"]),
+                utils.style(rawline, color=value_col),
             )
         )
     stack_trace_str = ""
@@ -374,8 +378,10 @@ def nice_print(
                 else ""
             )
             title_str = utils.style(
-                "[{}{}]".format(timing_title, args.title),
-                color=Back.GREEN + Fore.BLACK,
+                "{}{} @".format(timing_title, args.title),
+                color=Fore.GREEN
+                if not args.random
+                else STACK_TRACE_COLORS[prefix_val][1]
             )
             header_line_str = title_str + " " + header_line_str
         if args.ALLOW_RECORD and is_recording:

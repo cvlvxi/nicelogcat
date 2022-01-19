@@ -1,8 +1,9 @@
+import re
 import json
 import random
 from functools import reduce
+from typing import List, TypeVar
 from colorama import Fore, Style, Back
-from typing import List
 
 COLOR_STRS = [
     "BLACK",
@@ -14,7 +15,6 @@ COLOR_STRS = [
     "WHITE",
     "YELLOW",
 ]
-
 
 FORE_COLORS = [
     Fore.YELLOW,
@@ -73,9 +73,14 @@ COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
 
 ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
 
+T = TypeVar('T')
 
-def flatten_list(somelist: list):
-    unique = set([x for x in reduce(lambda x, y: x + y, somelist) if x])
+
+def flatten_list(somelist: List[T]) -> List[T]:
+    unique = set([
+        x for x in reduce(lambda x, y: x + y, somelist)  # type: ignore
+        if x
+    ])
 
     return list(unique)
 
@@ -167,17 +172,16 @@ def nested_dicts(some_dict: dict, level: int = 0):
     return new_dict
 
 
-def nice_print_dict(
-    key_count, top_spacer, some_dict, key_color, value_color, args
-):
+def nice_print_dict(key_count, top_spacer, some_dict, key_color, value_color,
+                    args):
     nice_str = ""
     nice_strings = []
 
     for k, v in some_dict.items():
         if isinstance(v, dict):
-            (new_key_count, nice_str) = nice_print_dict(
-                key_count, top_spacer, v, key_color, value_color, args
-            )
+            (new_key_count,
+             nice_str) = nice_print_dict(key_count, top_spacer, v, key_color,
+                                         value_color, args)
 
             nice_strings.append(nice_str)
             key_count = new_key_count
@@ -191,16 +195,12 @@ def nice_print_dict(
                     spacer = top_spacer
                 else:
                     spacer = ""
-            nice_strings.append(
-                spacer
-                + args.SPACER
-                + "{}{}: {}{}".format(
-                    args.LEFT_OF_KEY_VALUE,
-                    style(str(k).strip(), color=key_color),
-                    style(str(v).strip(), color=value_color),
-                    args.RIGHT_OF_KEY_VALUE,
-                )
-            )
+            nice_strings.append(spacer + args.SPACER + "{}{}: {}{}".format(
+                args.LEFT_OF_KEY_VALUE,
+                style(str(k).strip(), color=key_color),
+                style(str(v).strip(), color=value_color),
+                args.RIGHT_OF_KEY_VALUE,
+            ))
             key_count += 1
     if nice_strings:
         nice_str = args.SPACER.join([x for x in nice_strings if x])
@@ -218,7 +218,7 @@ def find_dict_in_v(v, rawline=None):
             first_bracket_idx = v.find("{")
             last_bracket_idx = v.rfind("}")
             v = v.replace("'", '"')
-            json_str = v[first_bracket_idx: last_bracket_idx + 1]
+            json_str = v[first_bracket_idx:last_bracket_idx + 1]
             try:
                 val = json.loads(json_str)
                 return val
@@ -317,39 +317,66 @@ def assemble_stack_str(
     args: dict,
     is_recording: bool,
 ):
-    # stack_trace_str = args.DIVIDER + "\n"
-    stack_trace_str = ""
-    if not args.flat:
-        stack_trace_str += "\n"
 
+    if args.linespace > 0:
+        stack_trace_str = "\n" * args.linespace
+    else:
+        stack_trace_str = ""
+
+    if args.ALLOW_RECORD and is_recording:
+        stack_trace_str += "🟢 "
+    if args.ALLOW_RECORD and not is_recording:
+        stack_trace_str += "🔴 "
     # Header Line
     back_color, fore_color = stack_trace_colors[prefix]
+    # stack_trace_str += style(f"{prefix}Exception", fore_color)
+    stack_trace_str += style(f"\t{prefix}", back_color + Fore.BLACK)
+    stack_trace_str += style(" @ ", back_color + Fore.BLACK)
     stack_trace_str += style(log_time, back_color + Fore.BLACK)
-    stack_trace_str += " @ "
-    stack_trace_str += style(prefix, fore_color)
+    stack_trace_str += style(" " * 30, back_color + Fore.BLACK)
     stack_trace_str += "\n"
     # Stack Prefixes
 
     if not args.flat:
         stack_trace_str += "\n"
-    stack_trace_str += style(
-        "\n".join([x for x in stack_trace_prefixes if x]), color=Fore.YELLOW
-    )
+    stack_trace_str += style("\n".join([x for x in stack_trace_prefixes if x]),
+                             color=Fore.YELLOW)
 
     biggest_index = len(stack_trace_lines) - 1
     num_stack_traces = min(args.NUM_STACK_TRACES_TO_PRINT, biggest_index)
     continued_str = ""
     if num_stack_traces < biggest_index:
-        continued_str = "...continued"
-    stack_trace_str += "\n\t"
-    stack_trace_str += "\n\t".join(stack_trace_lines[:num_stack_traces])
-    stack_trace_str += "\n"
+        continued_str = "\n\n(...continued)"
+
+    file_regex = r".*\((.*)\).*"
+    for stack_trace in stack_trace_lines[:num_stack_traces]:
+        result = re.match(file_regex, stack_trace)
+        print_default = False
+        if result:
+            file_path_str = result.group(1)
+            if ":" not in file_path_str:
+                print_default = True
+            else:
+                parts = file_path_str.split(":", 1)
+                before_path = stack_trace.split(file_path_str)[0]
+                file_path = parts[0]
+                line_num = parts[1]
+                new_stack_trace = ""
+                new_stack_trace += before_path
+                new_stack_trace += style(file_path, color=Fore.CYAN) + ":"
+                new_stack_trace += style(line_num, color=Fore.YELLOW)
+                stack_trace_str += f"\n\t{new_stack_trace}"
+                print_default = False
+
+        else:
+            print_default = True
+        if print_default:
+            stack_trace_str += f"\n\t{stack_trace}"
+
+    # stack_trace_str += "\n\t".join(stack_trace_lines[:num_stack_traces])
+    # stack_trace_str += "\n"
     stack_trace_str += continued_str
 
-    if args.ALLOW_RECORD and is_recording:
-        stack_trace_str = "🟢" + " " + stack_trace_str
-    if args.ALLOW_RECORD and not is_recording:
-        stack_trace_str = "🔴" + " " + stack_trace_str
     return stack_trace_str
 
 

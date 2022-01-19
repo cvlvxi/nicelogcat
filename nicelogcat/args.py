@@ -137,6 +137,11 @@ def ncparser() -> argparse.ArgumentParser:
         help="Random Prefix Background Color"
     )
     parser.add_argument(
+        "--random-msg",
+        action="store_true",
+        help="Apply random to msg"
+    )
+    parser.add_argument(
         "--any", action="store_true", help="Filters allow for any of the terms"
     )
     parser.add_argument(
