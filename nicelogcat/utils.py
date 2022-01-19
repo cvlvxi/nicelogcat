@@ -37,15 +37,13 @@ FORE_COLORS = [
 ]
 
 BACK_COLORS = [
-    Back.BLACK,
+    Back.YELLOW,
+    Back.WHITE,
     Back.BLUE,
     Back.CYAN,
     Back.GREEN,
     Back.MAGENTA,
     Back.RED,
-    Back.WHITE,
-    Back.YELLOW,
-    Back.LIGHTBLACK_EX,
     Back.LIGHTBLUE_EX,
     Back.LIGHTCYAN_EX,
     Back.LIGHTGREEN_EX,
@@ -53,6 +51,8 @@ BACK_COLORS = [
     Back.LIGHTRED_EX,
     Back.LIGHTWHITE_EX,
     Back.LIGHTYELLOW_EX,
+    Back.BLACK,
+    Back.LIGHTBLACK_EX,
 ]
 
 LOG_LEVEL_CHOICES = {
@@ -256,7 +256,8 @@ def find_stack(
             "started": False
             # "flushed": False
         }
-        stack_trace_colors[pfix] = args.FORE_COLORS[random.randint(2, 11)]
+        rand_color = BACK_COLORS[random.randint(2, 11)] + Fore.BLACK
+        stack_trace_colors[pfix] = rand_color
     if "stack" in string_dict:
         stack_msg = string_dict["stack"]
         stack_parts = stack_msg.split("\n", 1)
@@ -304,14 +305,16 @@ def assemble_stack_str(
     stack_trace_colors: dict,
     args: dict
 ):
-    stack_trace_str = args.DIVIDER + "\n"
+    # stack_trace_str = args.DIVIDER + "\n"
+    stack_trace_str = ""
     stack_trace_str += "\n"
-    stack_trace_str += "["
-    stack_trace_str += style(prefix + ' : ' + log_time,
-                             color=stack_trace_colors[prefix])
-    stack_trace_str += "]"
+
+    # Header Line
+    stack_trace_str += stack_trace_colors[prefix]
+    stack_trace_str += prefix + ' @ ' + log_time
+    stack_trace_str += Style.RESET_ALL
     stack_trace_str += "\n"
-    # Prefixes
+    # Stack Prefixes
     stack_trace_str += "\n"
     stack_trace_str += style("\n".join([x for x in stack_trace_prefixes if x]),
                              color=Fore.YELLOW)

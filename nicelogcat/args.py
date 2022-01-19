@@ -1,10 +1,10 @@
-
 import argparse
 import time
 import os
+import nicelogcat.utils as utils
+
 from colorama import Fore
 from collections import defaultdict
-from .utils import *
 
 
 SHOW_ARGS = False
@@ -16,7 +16,10 @@ def ncparser() -> argparse.ArgumentParser:
                         type=str, help="List of filters")
     parser.add_argument("--title", default="", type=str, help="Title to show")
     parser.add_argument(
-        "--suspend-util", default=None, type=str, help="Suspend until this is found"
+        "--suspend-util",
+        default=None,
+        type=str,
+        help="Suspend until this is found"
     )
     parser.add_argument(
         "--spacer",
@@ -25,7 +28,10 @@ def ncparser() -> argparse.ArgumentParser:
         help="spacer to use",
     )
     parser.add_argument(
-        "--linespace", type=int, default=0, help="Number of spaces between lines"
+        "--linespace",
+        type=int,
+        default=0,
+        help="Number of spaces between lines"
     )
     parser.add_argument("--divider", action="store_true",
                         help="Add a divider per line")
@@ -36,7 +42,7 @@ def ncparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--title-line-color",
         default=Fore.BLUE,
-        choices=COLOR_STRS,
+        choices=utils.COLOR_STRS,
         help="Color to use if showing title every line",
     )
     parser.add_argument("--per-line", type=int,
@@ -107,7 +113,9 @@ def ncparser() -> argparse.ArgumentParser:
         help="List of filters",
     )
     parser.add_argument(
-        "--filter-any", action="store_true", help="Filters allow for any of the terms"
+        "--filter-any",
+        action="store_true",
+        help="Filters allow for any of the terms"
     )
     parser.add_argument(
         "--any", action="store_true", help="Filters allow for any of the terms"
@@ -118,7 +126,7 @@ def ncparser() -> argparse.ArgumentParser:
         "-l",
         "--level",
         action="append",
-        choices=list(LOG_LEVEL_CHOICES.keys()),
+        choices=list(utils.LOG_LEVEL_CHOICES.keys()),
         default=None,
         type=str,
         help="Only these levels",
@@ -150,12 +158,16 @@ def ncparser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--num-stack-traces",
-        help="Default -1 is all. Choose a number for how many stack trace lines to show",
+        help="Default -1 is all." +
+             "Choose a number for how many stack trace lines to show"
     )
     return parser
 
 
-def get_args(parser: argparse.ArgumentParser, *args) -> argparse.ArgumentParser:
+def get_args(
+    parser: argparse.ArgumentParser,
+    *args
+) -> argparse.ArgumentParser:
 
     if args:
         args = parser.parse_args(*args)
@@ -164,11 +176,11 @@ def get_args(parser: argparse.ArgumentParser, *args) -> argparse.ArgumentParser:
 
     args.DIVIDER_SIZE = 60
 
-    args.COLOR_STRS = COLOR_STRS
-    args.FORE_COLORS = FORE_COLORS
-    args.BACK_COLORS = BACK_COLORS
-    args.COLOR_RESETTERS = COLOR_RESETTERS
-    args.ALL_COLORS = ALL_COLORS
+    args.COLOR_STRS = utils.COLOR_STRS
+    args.FORE_COLORS = utils.FORE_COLORS
+    args.BACK_COLORS = utils.BACK_COLORS
+    args.COLOR_RESETTERS = utils.COLOR_RESETTERS
+    args.ALL_COLORS = utils.ALL_COLORS
     args.TITLE = ""
     args.SPACER = " "
     args.DIVIDER = "-" * args.DIVIDER_SIZE
@@ -198,8 +210,8 @@ def get_args(parser: argparse.ArgumentParser, *args) -> argparse.ArgumentParser:
     args.RECORD_KEYS_DIFF = []
     args.PREV_RECORDED_STRING_DICT = {}
     args.FIND_STACKTRACES = False
-    args.NUM_STACK_TRACES_TO_PRINT = 6
-    args.PREV_MSGS_BEFORE_STACK_TRACE = 6
+    args.NUM_STACK_TRACES_TO_PRINT = 10
+    args.PREV_MSGS_BEFORE_STACK_TRACE = 4
     args.LEFT_OF_KEY_VALUE = "["
     args.RIGHT_OF_KEY_VALUE = "]"
 
@@ -226,48 +238,49 @@ def post_process_args(args: dict):
         if SHOW_ARGS:
             print("PER_LINE: {}".format(args.PER_LINE))
     if args.keys:
-        args.HIGHLIGHT_KEYS = flatten_list(args.keys)
+        args.HIGHLIGHT_KEYS = utils.flatten_list(args.keys)
         if SHOW_ARGS:
             print("HIGHLIGHT_KEYS: {}".format(
                 [k for k in args.HIGHLIGHT_KEYS]))
     if args.ignore_keys:
-        args.IGNORE_KEYS = flatten_list(args.ignore_keys)
+        args.IGNORE_KEYS = utils.flatten_list(args.ignore_keys)
         if SHOW_ARGS:
             print("IGNORE_KEYS: {}".format([k for k in args.IGNORE_KEYS]))
     if args.prefix:
-        args.PREFIXES = flatten_list(args.prefix)
+        args.PREFIXES = utils.flatten_list(args.prefix)
         if SHOW_ARGS:
             print("PREFIXES: {}".format([k for k in args.PREFIXES]))
     if args.ignore_prefix:
-        args.IGNORE_PREFIXES = flatten_list(args.ignore_prefix)
+        args.IGNORE_PREFIXES = utils.flatten_list(args.ignore_prefix)
         if SHOW_ARGS:
             print("IGNORE_PREFIXES: {}".format(
                 [k for k in args.IGNORE_PREFIXES]))
     if args.level:
-        args.LEVELS = [LOG_LEVEL_CHOICES[l] for l in args.level]
+        args.LEVELS = [utils.LOG_LEVEL_CHOICES[level] for level in args.level]
         if SHOW_ARGS:
             print("LEVELS: {}".format([k for k in args.LEVELS]))
     args.FILTERZ = args.filterz if args.filterz else []
     if args.filters or args.FILTERZ:
         args.FILTERS = []
         if args.filters:
-            args.FILTERS = flatten_list(args.filters)
+            args.FILTERS = utils.flatten_list(args.filters)
         args.FILTERS = args.FILTERS + args.FILTERZ
         args.HIGHLIGHT_PHRASES += args.FILTERS
         if SHOW_ARGS:
             print("FILTERS: {}".format([k for k in args.FILTERS]))
     if args.highlight or args.HIGHLIGHT_PHRASES or args.h:
         args.HIGHLIGHT_PHRASES = (
-            flatten_list(args.highlight) if args.highlight else [
-            ] + args.HIGHLIGHT_PHRASES
+            utils.flatten_list(args.highlight)
+            if args.highlight
+            else [] + args.HIGHLIGHT_PHRASES
         )
         if args.h:
-            args.HIGHLIGHT_PHRASES += flatten_list(args.h)
+            args.HIGHLIGHT_PHRASES += utils.flatten_list(args.h)
         if SHOW_ARGS:
             print("HIGHLIGHT_PHRASES: {}".format(
                 [k for k in args.HIGHLIGHT_PHRASES]))
     if args.filterout:
-        args.FILTER_OUT = flatten_list(args.filterout)
+        args.FILTER_OUT = utils.flatten_list(args.filterout)
         if SHOW_ARGS:
             print("FILTER_OUT: {}".format([k for k in args.FILTER_OUT]))
     if args.header_spacer == "newline":
@@ -278,14 +291,16 @@ def post_process_args(args: dict):
         args.WILL_COUNT = True
         args.TIMING_SECONDS_INTERVAL = args.time_per_secs
         if SHOW_ARGS:
-            print("TIMING NUMBER OF LOGS PER: {} seconds".format(
-                args.TIMING_SECONDS_INTERVAL))
+            print(
+                "TIMING NUMBER OF LOGS PER: {} seconds".format(
+                    args.TIMING_SECONDS_INTERVAL
+                )
+            )
     if args.ALLOW_RECORD:
         if SHOW_ARGS:
-            print(
-                "Recording enabled. Use {} to trigger record start/stop".format(
-                    args.RECORD_KEY)
-            )
+            print_str = "Recording enabled"
+            print_str += f"Use {args.RECORD_KEY} to trigger record start/stop"
+            print(print_str)
         if not args.record_dir:
             args.RECORD_DIR = os.getcwd()
         else:
@@ -293,7 +308,7 @@ def post_process_args(args: dict):
         if not os.path.exists(args.RECORD_DIR):
             raise ValueError(args.RECORD_DIR + " needs to exist")
         if args.record_keys:
-            args.RECORD_KEYS_DIFF = flatten_list(args.record_keys)
+            args.RECORD_KEYS_DIFF = utils.flatten_list(args.record_keys)
             args.HIGHLIGHT_KEYS + args.RECORD_KEYS_DIFF
             if SHOW_ARGS:
                 print(

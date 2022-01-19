@@ -1,6 +1,7 @@
 import time
 import os
 import nicelogcat.utils as utils
+from datetime import datetime
 from typing import Tuple, Optional
 from colorama import init, Fore, Back
 from pynput import keyboard
@@ -121,6 +122,16 @@ def nice_print(
     level_val = utils.remove_col_from_val(linedict["level"])
     prefix_val = utils.remove_col_from_val(linedict["prefix"])
     log_time = utils.remove_col_from_val(linedict["log_time"])
+    readable_time: datetime = datetime.strptime(log_time,
+                                                "%m-%d %H:%M:%S.%f")
+    # Assume current year?
+    new_datetime = datetime(year=datetime.now().year,
+                            month=readable_time.month,
+                            day=readable_time.day,
+                            hour=readable_time.hour,
+                            minute=readable_time.minute,
+                            second=readable_time.second)
+    log_time = new_datetime.ctime()
 
     if args.level and any([level_val not in x for x in args.LEVELS]):
         return ("", False)
@@ -337,9 +348,9 @@ def nice_print(
         )
         if args.flat and not args.no_flat:
             thing_to_print = count_str + \
-                             header_line_str + \
-                             args.SPACER + \
-                             result_str.strip()
+                header_line_str + \
+                args.SPACER + \
+                result_str.strip()
         return (thing_to_print, change_detected)
     return ("", False)
 
