@@ -245,7 +245,8 @@ def find_stack(
     string_dict: dict,
     stack_trace_colors: dict,
     log_time: str,
-    args: dict
+    args: dict,
+    is_recording: bool
 ):
     if not pfix or (args.PREFIXES and pfix not in args.PREFIXES):
         return ""
@@ -272,7 +273,8 @@ def find_stack(
             stack_trace_prefixes=[stack_prefixes],
             stack_trace_lines=stacktraces,
             stack_trace_colors=stack_trace_colors,
-            args=args
+            args=args,
+            is_recording=is_recording
         )
     stack_trace_str = ""
     if 'message' not in string_dict:
@@ -294,7 +296,8 @@ def find_stack(
                                           pfix,
                                           stack_trace_colors,
                                           log_time,
-                                          args=args)
+                                          args=args,
+                                          is_recording=is_recording)
     if len(stack_prefixes) == args.PREV_MSGS_BEFORE_STACK_TRACE:
         stack_trace_map[pfix]["prefixes"] = []
     return stack_trace_str
@@ -306,7 +309,8 @@ def assemble_stack_str(
     stack_trace_prefixes: List[str],
     stack_trace_lines: List[str],
     stack_trace_colors: dict,
-    args: dict
+    args: dict,
+    is_recording: bool
 ):
     # stack_trace_str = args.DIVIDER + "\n"
     stack_trace_str = ""
@@ -335,6 +339,11 @@ def assemble_stack_str(
     stack_trace_str += ("\n\t".join(stack_trace_lines[:num_stack_traces]))
     stack_trace_str += "\n"
     stack_trace_str += (continued_str)
+
+    if args.ALLOW_RECORD and is_recording:
+        stack_trace_str = "🟢" + " " + stack_trace_str
+    if args.ALLOW_RECORD and not is_recording:
+        stack_trace_str = "🔴" + " " + stack_trace_str
     return stack_trace_str
 
 
@@ -343,7 +352,8 @@ def clear_stack(
     pfix: str,
     stack_trace_colors: dict,
     log_time: str,
-    args: dict
+    args: dict,
+    is_recording: bool
 ):
     stack_trace_str = assemble_stack_str(
         log_time=log_time,
@@ -351,7 +361,8 @@ def clear_stack(
         stack_trace_prefixes=stack_trace_map[pfix]["prefixes"],
         stack_trace_lines=stack_trace_map[pfix]["stacktraces"],
         stack_trace_colors=stack_trace_colors,
-        args=args
+        args=args,
+        is_recording=is_recording
     )
     stack_trace_map[pfix]["started"] = False
     stack_trace_map[pfix]["prefixes"] = []

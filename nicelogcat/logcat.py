@@ -86,7 +86,10 @@ async def main_loop(args: dict, stream: BinaryIO) -> Output:
                     write_to_file = output.change_detected
                 with open(record_file_path, "a") as f:
                     if write_to_file:
-                        f.write(output.thing_to_print + "\n")
+                        if output.output:
+                            f.write(output.output + "\n")
+                        if output.stacktrace:
+                            f.write(output.stacktrace + "\n")
             yield output
 
     except StopIteration:
@@ -255,7 +258,8 @@ def nice_print(
                                                string_dict,
                                                STACK_TRACE_COLORS,
                                                log_time,
-                                               args=args)
+                                               args=args,
+                                               is_recording=IS_RECORDING)
 
     will_print = True
     result_str = args.SPACER.join([x for x in string_list if x])
