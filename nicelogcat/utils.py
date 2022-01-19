@@ -1,6 +1,9 @@
+
+import json
+import random
 from functools import reduce
 from colorama import Fore, Style, Back
-import json
+from typing import List
 
 COLOR_STRS = [
     "BLACK",
@@ -230,7 +233,7 @@ def flatten_dict(d):
     if isinstance(d, dict):
         for k, v in d.items():
             if isinstance(v, dict):
-                flatten_dict(v)
+                new_dict.update(flatten_dict(v))
             else:
                 new_dict[k] = v
     return new_dict
@@ -244,58 +247,102 @@ def find_stack(
     log_time: str,
     args: dict
 ):
-    print(string_dict)
-    # stack_trace_str = ""
-    # if not pfix or (args.PREFIXES and pfix not in args.PREFIXES):
-    #     return ""
-    # if pfix not in stack_trace_map:
-    #     stack_trace_map[pfix] = {
-    #         "prefixes": [],
-    #         "stacktraces": [],
-    #         "started": False
-    #         # "flushed": False
-    #     }
-    #     stack_trace_colors[pfix] = args.FORE_COLORS[random.randint(2, 11)]
-    # message = message.strip()
-    # is_a_stack_trace = message.startswith("at ")
-    # if is_a_stack_trace:
-    #     if not stack_trace_map[pfix]["started"]:
-    #         stack_trace_map[pfix]["started"] = True
-    #     stack_trace_map[pfix]["stacktraces"].append(message)
-    # else:
-    #     stack_trace_map[pfix]["prefixes"].append(message)
-    #     if (
-    #         stack_trace_map[pfix]["started"]
-    #         and len(stack_trace_map[pfix]["stacktraces"]) > 0
-    #     ):
-    #         stack_trace_str = clear_stack(
-    #             stack_trace_map, pfix, stack_trace_colors, log_time, args=args)
-    # if len(stack_trace_map[pfix]["prefixes"]) == args.PREV_MSGS_BEFORE_STACK_TRACE:
-    #     stack_trace_map[pfix]["prefixes"] = []
-    # return stack_trace_str
-
-
-def clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time, args):
-    stack_trace_str = args.DIVIDER + "\n"
-    stack_trace_str += (
-        style(pfix + " : " + log_time, color=stack_trace_colors[pfix]) + "]"
-    ) + "\n"
-    stack_trace_str += (
-        style(
-            "\n".join([x for x in stack_trace_map[pfix]["prefixes"] if x]),
-            color=Fore.YELLOW,
+    if not pfix or (args.PREFIXES and pfix not in args.PREFIXES):
+        return ""
+    if pfix not in stack_trace_map:
+        stack_trace_map[pfix] = {
+            "prefixes": [],
+            "stacktraces": [],
+            "started": False
+            # "flushed": False
+        }
+        stack_trace_colors[pfix] = args.FORE_COLORS[random.randint(2, 11)]
+    if "stack" in string_dict:
+        stack_msg = string_dict["stack"]
+        stack_parts = stack_msg.split("\n", 1)
+        stack_prefixes = stack_parts[0]
+        stacktraces = stack_parts[1].split('\n')
+        return assemble_stack_str(
+            log_time=log_time,
+            prefix=pfix,
+            stack_trace_prefixes=[stack_prefixes],
+            stack_trace_lines=stacktraces,
+            stack_trace_colors=stack_trace_colors,
+            args=args
         )
-        + "\n"
-    )
-    biggest_index = len(stack_trace_map[pfix]['stacktraces']) - 1
+    stack_trace_str = ""
+    if 'message' not in string_dict:
+        return ""
+    message = string_dict['message']
+    message = message.strip()
+    is_a_stack_trace = message.startswith("at ")
+    stack_prefixes = stack_trace_map[pfix]["prefixes"]
+    stacktraces = stack_trace_map[pfix]["stacktraces"]
+    started = stack_trace_map[pfix]["started"]
+    if is_a_stack_trace:
+        if not started:
+            stack_trace_map[pfix]["started"] = True
+        stacktraces.append(message)
+    else:
+        stack_prefixes.append(message)
+        if stack_trace_map[pfix]["started"] and len(stacktraces) > 0:
+            stack_trace_str = clear_stack(stack_trace_map,
+                                          pfix,
+                                          stack_trace_colors,
+                                          log_time,
+                                          args=args)
+    if len(stack_prefixes) == args.PREV_MSGS_BEFORE_STACK_TRACE:
+        stack_trace_map[pfix]["prefixes"] = []
+    return stack_trace_str
+
+
+def assemble_stack_str(
+    log_time: str,
+    prefix: str,
+    stack_trace_prefixes: List[str],
+    stack_trace_lines: List[str],
+    stack_trace_colors: dict,
+    args: dict
+):
+    stack_trace_str = args.DIVIDER + "\n"
+    stack_trace_str += "\n"
+    stack_trace_str += "["
+    stack_trace_str += style(prefix + ' : ' + log_time,
+                             color=stack_trace_colors[prefix])
+    stack_trace_str += "]"
+    stack_trace_str += "\n"
+    # Prefixes
+    stack_trace_str += "\n"
+    stack_trace_str += style("\n".join([x for x in stack_trace_prefixes if x]),
+                             color=Fore.YELLOW)
+    stack_trace_str += "\n"
+    biggest_index = len(stack_trace_lines) - 1
     num_stack_traces = min(args.NUM_STACK_TRACES_TO_PRINT, biggest_index)
     continued_str = ""
     if num_stack_traces < biggest_index:
         continued_str = "...continued"
-    stack_trace_str += "\n\t" + (
-        "\n\t".join(stack_trace_map[pfix]["stacktraces"][:num_stack_traces])
-    ) + "\n"
+    stack_trace_str += "\n\t"
+    stack_trace_str += ("\n\t".join(stack_trace_lines[:num_stack_traces]))
+    stack_trace_str += "\n"
     stack_trace_str += (continued_str) + "\n"
+    return stack_trace_str
+
+
+def clear_stack(
+    stack_trace_map: dict,
+    pfix: str,
+    stack_trace_colors: dict,
+    log_time: str,
+    args: dict
+):
+    stack_trace_str = assemble_stack_str(
+        log_time=log_time,
+        prefix=pfix,
+        stack_trace_prefixes=stack_trace_map[pfix]["prefixes"],
+        stack_trace_lines=stack_trace_map[pfix]["stacktraces"],
+        stack_trace_colors=stack_trace_colors,
+        args=args
+    )
     stack_trace_map[pfix]["started"] = False
     stack_trace_map[pfix]["prefixes"] = []
     stack_trace_map[pfix]["stacktraces"] = []

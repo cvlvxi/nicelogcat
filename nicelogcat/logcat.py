@@ -239,7 +239,8 @@ def nice_print(
                                                STACK_TRACE_COLORS,
                                                log_time,
                                                args=args)
-            print(stack_trace_str)
+            if stack_trace_str:
+                print(stack_trace_str)
     will_print = True
     result_str = args.SPACER.join([x for x in string_list if x])
     result_str_no_col = utils.remove_col_from_val(result_str)
