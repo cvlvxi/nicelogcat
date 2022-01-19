@@ -256,8 +256,11 @@ def find_stack(
             "started": False
             # "flushed": False
         }
-        rand_color = BACK_COLORS[random.randint(2, 11)] + Fore.BLACK
-        stack_trace_colors[pfix] = rand_color
+        rand_idx = random.randint(2, 11)
+        stack_trace_colors[pfix] = (
+            BACK_COLORS[rand_idx],
+            FORE_COLORS[rand_idx]
+        )
     if "stack" in string_dict:
         stack_msg = string_dict["stack"]
         stack_parts = stack_msg.split("\n", 1)
@@ -307,18 +310,22 @@ def assemble_stack_str(
 ):
     # stack_trace_str = args.DIVIDER + "\n"
     stack_trace_str = ""
-    stack_trace_str += "\n"
+    if not args.flat:
+        stack_trace_str += "\n"
 
     # Header Line
-    stack_trace_str += stack_trace_colors[prefix]
-    stack_trace_str += prefix + ' @ ' + log_time
-    stack_trace_str += Style.RESET_ALL
+    back_color, fore_color = stack_trace_colors[prefix]
+    stack_trace_str += style(log_time, back_color + Fore.BLACK)
+    stack_trace_str += " @ "
+    stack_trace_str += style(prefix, fore_color)
     stack_trace_str += "\n"
     # Stack Prefixes
-    stack_trace_str += "\n"
+
+    if not args.flat:
+        stack_trace_str += "\n"
     stack_trace_str += style("\n".join([x for x in stack_trace_prefixes if x]),
                              color=Fore.YELLOW)
-    stack_trace_str += "\n"
+
     biggest_index = len(stack_trace_lines) - 1
     num_stack_traces = min(args.NUM_STACK_TRACES_TO_PRINT, biggest_index)
     continued_str = ""
@@ -327,7 +334,7 @@ def assemble_stack_str(
     stack_trace_str += "\n\t"
     stack_trace_str += ("\n\t".join(stack_trace_lines[:num_stack_traces]))
     stack_trace_str += "\n"
-    stack_trace_str += (continued_str) + "\n"
+    stack_trace_str += (continued_str)
     return stack_trace_str
 
 

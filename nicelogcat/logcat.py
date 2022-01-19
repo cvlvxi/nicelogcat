@@ -1,6 +1,8 @@
+from re import I
 import time
 import os
 import nicelogcat.utils as utils
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Tuple, Optional
 from colorama import init, Fore, Back
@@ -21,7 +23,18 @@ STACK_TRACE_MAP = {}
 STACK_TRACE_COLORS = {}
 
 
-async def main_loop(args: dict, stream: BinaryIO):
+@dataclass
+class Output:
+    output: str
+    change_detected: bool
+    stacktrace: str
+
+    @staticmethod
+    def default() -> "Output":
+        return Output("", False, "")
+
+
+async def main_loop(args: dict, stream: BinaryIO) -> Output:
     global TITLE
     global RECORD_DIR
     RECORD_DIR = args.record_dir
@@ -54,34 +67,27 @@ async def main_loop(args: dict, stream: BinaryIO):
                 msg,
             ]
             linedict = utils.nested_dicts(dict(zip(the_keys, the_values)))
-            (thing_to_print, change_detected) = nice_print(
+            output: Output = nice_print(
                 args,
                 linedict,
                 rawline=line,
                 force_disable_print=FORCE_DISABLE_PRINT,
                 is_recording=IS_RECORDING,
             )
-            if not thing_to_print:
+            if output == Output.default():
                 continue
             if FORCE_DISABLE_PRINT or args.disable:
-                continue
-            # THE PRINT
-            # Stack trace here
-            # if stack_trace_str:
-            #     thing_to_print = stack_trace_str + "\n" + thing_to_print
-            # if args.linespace > 1:
-            #     thing_to_print = thing_to_print + "\n" * args.linespace
-            # CAPTURE RECORDING TO FILE
+                output.output = ""
             if args.ALLOW_RECORD and IS_RECORDING:
                 record_file_path = os.path.join(
                     args.RECORD_DIR, RECORD_FILE_NAME)
                 write_to_file = True
                 if args.RECORD_KEYS_DIFF:
-                    write_to_file = change_detected
+                    write_to_file = output.change_detected
                 with open(record_file_path, "a") as f:
                     if write_to_file:
-                        f.write(thing_to_print + "\n")
-            yield thing_to_print
+                        f.write(output.thing_to_print + "\n")
+            yield output
 
     except StopIteration:
         pass
@@ -134,14 +140,14 @@ def nice_print(
     log_time = new_datetime.ctime()
 
     if args.level and any([level_val not in x for x in args.LEVELS]):
-        return ("", False)
+        return Output.default()
     prefix_exists_check = [prefix_val.strip().lower() != x.lower()
                            for x in args.PREFIXES]
     if args.PREFIXES and all(prefix_exists_check) or not prefix_val:
-        return ("", False)
+        return Output.default()
     ignore_prefix_check = [prefix_val in x for x in args.IGNORE_PREFIXES]
     if args.ignore_prefix and any(ignore_prefix_check):
-        return ("", False)
+        return Output.default()
 
     string_list = []
     key_order = []
@@ -250,8 +256,7 @@ def nice_print(
                                                STACK_TRACE_COLORS,
                                                log_time,
                                                args=args)
-            if stack_trace_str:
-                print(stack_trace_str)
+
     will_print = True
     result_str = args.SPACER.join([x for x in string_list if x])
     result_str_no_col = utils.remove_col_from_val(result_str)
@@ -351,8 +356,8 @@ def nice_print(
                 header_line_str + \
                 args.SPACER + \
                 result_str.strip()
-        return (thing_to_print, change_detected)
-    return ("", False)
+        return Output(thing_to_print, change_detected, stack_trace_str)
+    return Output(output="", change_detected=False, stacktrace=stack_trace_str)
 
 
 def on_press(key):

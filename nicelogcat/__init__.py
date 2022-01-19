@@ -5,10 +5,12 @@ import traceback
 from pynput import keyboard
 from colorama import Fore, Back
 from .args import main_args, ncparser
-from .logcat import main_loop, on_press
+from .logcat import main_loop, on_press, Output
+
 
 def main():
     asyncio.run(prepare())
+
 
 async def prepare():
     args = main_args()
@@ -33,11 +35,15 @@ async def prepare():
     if args.ALLOW_RECORD:
         with keyboard.Listener(on_press=on_press) as listener:
             try:
-                async for log in main_loop(args, stream=sys.stdin.buffer.raw):
-                    print(log)
+                async for out in main_loop(args, stream=sys.stdin.buffer.raw):
+                    out: Output
+                    if args.FIND_STACKTRACES:
+                        print(out.stacktrace)
+                    else:
+                        print(out.output)
                 main_loop(args, stream=sys.stdin.buffer.raw)
                 listener.join()
-            except Exception as ex:
+            except Exception:
                 print(traceback.print_exc())
     else:
         async for log in main_loop(args, stream=sys.stdin.buffer.raw):
