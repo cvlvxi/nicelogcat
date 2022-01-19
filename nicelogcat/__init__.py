@@ -1,12 +1,16 @@
+
 import sys
+import asyncio
 import traceback
 from pynput import keyboard
 from colorama import Fore, Back
 from .args import main_args, ncparser
 from .logcat import main_loop, on_press
 
-
 def main():
+    asyncio.run(prepare())
+
+async def prepare():
     args = main_args()
     colors = {
         "HEADER_STR_COLOR": Back.YELLOW + Fore.BLACK,
@@ -29,14 +33,14 @@ def main():
     if args.ALLOW_RECORD:
         with keyboard.Listener(on_press=on_press) as listener:
             try:
-                for log in main_loop(args, stream=sys.stdin.buffer.raw):
+                async for log in main_loop(args, stream=sys.stdin.buffer.raw):
                     print(log)
                 main_loop(args, stream=sys.stdin.buffer.raw)
                 listener.join()
             except Exception as ex:
                 print(traceback.print_exc())
     else:
-        for log in main_loop(args, stream=sys.stdin.buffer.raw):
+        async for log in main_loop(args, stream=sys.stdin.buffer.raw):
             print(log)
 
 

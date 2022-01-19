@@ -1,7 +1,6 @@
 from functools import reduce
 from colorama import Fore, Style, Back
 import json
-import random
 
 COLOR_STRS = [
     "BLACK",
@@ -73,8 +72,8 @@ COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
 ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
 
 
-def flatten_list(l):
-    unique = set([x for x in reduce(lambda x, y: x + y, l) if x])
+def flatten_list(somelist: list):
+    unique = set([x for x in reduce(lambda x, y: x + y, somelist) if x])
 
     return list(unique)
 
@@ -135,23 +134,12 @@ def remove_col_from_val(val):
     return new_val
 
 
-def style(val: str, min_len: int = None, color=None):
+def style(val: str, color=None):
     if not val or not isinstance(val, str):
         return val
     new_val = remove_col_from_val(val)
-    new_val_len = len(new_val)
-    spacer = " "
-    if min_len:
-        if new_val_len < min_len:
-            new_val = val + spacer * (min_len - new_val_len)
-        else:
-            raise ValueError(
-                "orig_val: {} new_val: {} has length: {} which is bigger than {}".format(
-                    val, new_val, new_val_len, min_len
-                )
-            )
     if color:
-        val = color + val + Style.RESET_ALL
+        val = color + new_val + Style.RESET_ALL
     return val
 
 
@@ -161,7 +149,7 @@ def nested_dicts(some_dict: dict, level: int = 0):
         value = None
         try:
             value = json.loads(v)
-        except:
+        except Exception:
             value = v
         if not isinstance(value, dict):
             new_dict[k] = v
@@ -232,7 +220,7 @@ def find_dict_in_v(v, rawline=None):
             try:
                 val = json.loads(json_str)
                 return val
-            except Exception as e:
+            except Exception:
                 return {}
     return {}
 
@@ -248,35 +236,43 @@ def flatten_dict(d):
     return new_dict
 
 
-def find_stack(stack_trace_map, pfix, message, stack_trace_colors, log_time, args):
-    stack_trace_str = ""
-    if not pfix or (args.PREFIXES and pfix not in args.PREFIXES):
-        return ""
-    if pfix not in stack_trace_map:
-        stack_trace_map[pfix] = {
-            "prefixes": [],
-            "stacktraces": [],
-            "started": False
-            # "flushed": False
-        }
-        stack_trace_colors[pfix] = args.FORE_COLORS[random.randint(2, 11)]
-    message = message.strip()
-    is_a_stack_trace = message.startswith("at ")
-    if is_a_stack_trace:
-        if not stack_trace_map[pfix]["started"]:
-            stack_trace_map[pfix]["started"] = True
-        stack_trace_map[pfix]["stacktraces"].append(message)
-    else:
-        stack_trace_map[pfix]["prefixes"].append(message)
-        if (
-            stack_trace_map[pfix]["started"]
-            and len(stack_trace_map[pfix]["stacktraces"]) > 0
-        ):
-            stack_trace_str = clear_stack(
-                stack_trace_map, pfix, stack_trace_colors, log_time, args=args)
-    if len(stack_trace_map[pfix]["prefixes"]) == args.PREV_MSGS_BEFORE_STACK_TRACE:
-        stack_trace_map[pfix]["prefixes"] = []
-    return stack_trace_str
+def find_stack(
+    stack_trace_map: dict,
+    pfix: str,
+    string_dict: dict,
+    stack_trace_colors: dict,
+    log_time: str,
+    args: dict
+):
+    print(string_dict)
+    # stack_trace_str = ""
+    # if not pfix or (args.PREFIXES and pfix not in args.PREFIXES):
+    #     return ""
+    # if pfix not in stack_trace_map:
+    #     stack_trace_map[pfix] = {
+    #         "prefixes": [],
+    #         "stacktraces": [],
+    #         "started": False
+    #         # "flushed": False
+    #     }
+    #     stack_trace_colors[pfix] = args.FORE_COLORS[random.randint(2, 11)]
+    # message = message.strip()
+    # is_a_stack_trace = message.startswith("at ")
+    # if is_a_stack_trace:
+    #     if not stack_trace_map[pfix]["started"]:
+    #         stack_trace_map[pfix]["started"] = True
+    #     stack_trace_map[pfix]["stacktraces"].append(message)
+    # else:
+    #     stack_trace_map[pfix]["prefixes"].append(message)
+    #     if (
+    #         stack_trace_map[pfix]["started"]
+    #         and len(stack_trace_map[pfix]["stacktraces"]) > 0
+    #     ):
+    #         stack_trace_str = clear_stack(
+    #             stack_trace_map, pfix, stack_trace_colors, log_time, args=args)
+    # if len(stack_trace_map[pfix]["prefixes"]) == args.PREV_MSGS_BEFORE_STACK_TRACE:
+    #     stack_trace_map[pfix]["prefixes"] = []
+    # return stack_trace_str
 
 
 def clear_stack(stack_trace_map, pfix, stack_trace_colors, log_time, args):
