@@ -12,14 +12,15 @@ SHOW_ARGS = False
 
 def ncparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="nicelogcat")
-    parser.add_argument(dest="filterz", nargs="*",
-                        type=str, help="List of filters")
+    parser.add_argument(
+        dest="filterz", nargs="*", type=str, help="List of filters"
+    )
     parser.add_argument("--title", default="", type=str, help="Title to show")
     parser.add_argument(
         "--suspend-util",
         default=None,
         type=str,
-        help="Suspend until this is found"
+        help="Suspend until this is found",
     )
     parser.add_argument(
         "--spacer",
@@ -31,10 +32,11 @@ def ncparser() -> argparse.ArgumentParser:
         "--linespace",
         type=int,
         default=0,
-        help="Number of spaces between lines"
+        help="Number of spaces between lines",
     )
-    parser.add_argument("--divider", action="store_true",
-                        help="Add a divider per line")
+    parser.add_argument(
+        "--divider", action="store_true", help="Add a divider per line"
+    )
     parser.add_argument("--disable", action="store_true", help="Disable Print")
     parser.add_argument("--flat", action="store_true", help="Flat")
     parser.add_argument("--no-flat", action="store_true", help="No Flat")
@@ -45,8 +47,9 @@ def ncparser() -> argparse.ArgumentParser:
         choices=utils.COLOR_STRS,
         help="Color to use if showing title every line",
     )
-    parser.add_argument("--per-line", type=int,
-                        default=4, help="Keys per line")
+    parser.add_argument(
+        "--per-line", type=int, default=4, help="Keys per line"
+    )
     parser.add_argument(
         "--time-per-secs",
         type=int,
@@ -93,8 +96,9 @@ def ncparser() -> argparse.ArgumentParser:
         default=None,
         help="Highlight these phrase",
     )
-    parser.add_argument("--record-dir", type=str,
-                        default=None, help="Record Directory")
+    parser.add_argument(
+        "--record-dir", type=str, default=None, help="Record Directory"
+    )
     parser.add_argument(
         "--record-keys",
         action="append",
@@ -115,13 +119,14 @@ def ncparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--filter-any",
         action="store_true",
-        help="Filters allow for any of the terms"
+        help="Filters allow for any of the terms",
     )
     parser.add_argument(
         "--any", action="store_true", help="Filters allow for any of the terms"
     )
-    parser.add_argument("--stacktrace", action="store_true",
-                        help="Find Stack Traces")
+    parser.add_argument(
+        "--stacktrace", action="store_true", help="Find Stack Traces"
+    )
     parser.add_argument(
         "-l",
         "--level",
@@ -158,15 +163,14 @@ def ncparser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--num-stack-traces",
-        help="Default -1 is all." +
-             "Choose a number for how many stack trace lines to show"
+        help="Default -1 is all."
+        + "Choose a number for how many stack trace lines to show",
     )
     return parser
 
 
 def get_args(
-    parser: argparse.ArgumentParser,
-    *args
+    parser: argparse.ArgumentParser, *args
 ) -> argparse.ArgumentParser:
 
     if args:
@@ -240,8 +244,9 @@ def post_process_args(args: dict):
     if args.keys:
         args.HIGHLIGHT_KEYS = utils.flatten_list(args.keys)
         if SHOW_ARGS:
-            print("HIGHLIGHT_KEYS: {}".format(
-                [k for k in args.HIGHLIGHT_KEYS]))
+            print(
+                "HIGHLIGHT_KEYS: {}".format([k for k in args.HIGHLIGHT_KEYS])
+            )
     if args.ignore_keys:
         args.IGNORE_KEYS = utils.flatten_list(args.ignore_keys)
         if SHOW_ARGS:
@@ -253,8 +258,9 @@ def post_process_args(args: dict):
     if args.ignore_prefix:
         args.IGNORE_PREFIXES = utils.flatten_list(args.ignore_prefix)
         if SHOW_ARGS:
-            print("IGNORE_PREFIXES: {}".format(
-                [k for k in args.IGNORE_PREFIXES]))
+            print(
+                "IGNORE_PREFIXES: {}".format([k for k in args.IGNORE_PREFIXES])
+            )
     if args.level:
         args.LEVELS = [utils.LOG_LEVEL_CHOICES[level] for level in args.level]
         if SHOW_ARGS:
@@ -277,8 +283,11 @@ def post_process_args(args: dict):
         if args.h:
             args.HIGHLIGHT_PHRASES += utils.flatten_list(args.h)
         if SHOW_ARGS:
-            print("HIGHLIGHT_PHRASES: {}".format(
-                [k for k in args.HIGHLIGHT_PHRASES]))
+            print(
+                "HIGHLIGHT_PHRASES: {}".format(
+                    [k for k in args.HIGHLIGHT_PHRASES]
+                )
+            )
     if args.filterout:
         args.FILTER_OUT = utils.flatten_list(args.filterout)
         if SHOW_ARGS:
@@ -323,8 +332,11 @@ def post_process_args(args: dict):
         if SHOW_ARGS:
             print("WILL FIND STACK TRACES")
         if SHOW_ARGS:
-            print("NUM stack trace lines: {}".format(
-                args.NUM_STACK_TRACES_TO_PRINT))
+            print(
+                "NUM stack trace lines: {}".format(
+                    args.NUM_STACK_TRACES_TO_PRINT
+                )
+            )
     if args.flat and not args.no_flat:
         args.linespace = 0
         args.PER_LINE = -1

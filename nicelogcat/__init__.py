@@ -1,4 +1,3 @@
-
 import sys
 import asyncio
 import traceback
@@ -6,6 +5,8 @@ from pynput import keyboard
 from colorama import Fore, Back
 from .args import main_args, ncparser
 from .logcat import main_loop, on_press, Output
+
+__all__ = ['ncparser']
 
 
 def main():

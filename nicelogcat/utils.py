@@ -1,4 +1,3 @@
-
 import json
 import random
 from functools import reduce
@@ -246,7 +245,7 @@ def find_stack(
     stack_trace_colors: dict,
     log_time: str,
     args: dict,
-    is_recording: bool
+    is_recording: bool,
 ):
     if not pfix or (args.PREFIXES and pfix not in args.PREFIXES):
         return ""
@@ -260,13 +259,13 @@ def find_stack(
         rand_idx = random.randint(2, 11)
         stack_trace_colors[pfix] = (
             BACK_COLORS[rand_idx],
-            FORE_COLORS[rand_idx]
+            FORE_COLORS[rand_idx],
         )
     if "stack" in string_dict:
         stack_msg = string_dict["stack"]
         stack_parts = stack_msg.split("\n", 1)
         stack_prefixes = stack_parts[0]
-        stacktraces = stack_parts[1].split('\n')
+        stacktraces = stack_parts[1].split("\n")
         return assemble_stack_str(
             log_time=log_time,
             prefix=pfix,
@@ -274,12 +273,12 @@ def find_stack(
             stack_trace_lines=stacktraces,
             stack_trace_colors=stack_trace_colors,
             args=args,
-            is_recording=is_recording
+            is_recording=is_recording,
         )
     stack_trace_str = ""
-    if 'message' not in string_dict:
+    if "message" not in string_dict:
         return ""
-    message = string_dict['message']
+    message = string_dict["message"]
     message = message.strip()
     is_a_stack_trace = message.startswith("at ")
     stack_prefixes = stack_trace_map[pfix]["prefixes"]
@@ -292,12 +291,14 @@ def find_stack(
     else:
         stack_prefixes.append(message)
         if stack_trace_map[pfix]["started"] and len(stacktraces) > 0:
-            stack_trace_str = clear_stack(stack_trace_map,
-                                          pfix,
-                                          stack_trace_colors,
-                                          log_time,
-                                          args=args,
-                                          is_recording=is_recording)
+            stack_trace_str = clear_stack(
+                stack_trace_map,
+                pfix,
+                stack_trace_colors,
+                log_time,
+                args=args,
+                is_recording=is_recording,
+            )
     if len(stack_prefixes) == args.PREV_MSGS_BEFORE_STACK_TRACE:
         stack_trace_map[pfix]["prefixes"] = []
     return stack_trace_str
@@ -310,7 +311,7 @@ def assemble_stack_str(
     stack_trace_lines: List[str],
     stack_trace_colors: dict,
     args: dict,
-    is_recording: bool
+    is_recording: bool,
 ):
     # stack_trace_str = args.DIVIDER + "\n"
     stack_trace_str = ""
@@ -327,8 +328,9 @@ def assemble_stack_str(
 
     if not args.flat:
         stack_trace_str += "\n"
-    stack_trace_str += style("\n".join([x for x in stack_trace_prefixes if x]),
-                             color=Fore.YELLOW)
+    stack_trace_str += style(
+        "\n".join([x for x in stack_trace_prefixes if x]), color=Fore.YELLOW
+    )
 
     biggest_index = len(stack_trace_lines) - 1
     num_stack_traces = min(args.NUM_STACK_TRACES_TO_PRINT, biggest_index)
@@ -336,9 +338,9 @@ def assemble_stack_str(
     if num_stack_traces < biggest_index:
         continued_str = "...continued"
     stack_trace_str += "\n\t"
-    stack_trace_str += ("\n\t".join(stack_trace_lines[:num_stack_traces]))
+    stack_trace_str += "\n\t".join(stack_trace_lines[:num_stack_traces])
     stack_trace_str += "\n"
-    stack_trace_str += (continued_str)
+    stack_trace_str += continued_str
 
     if args.ALLOW_RECORD and is_recording:
         stack_trace_str = "🟢" + " " + stack_trace_str
@@ -353,7 +355,7 @@ def clear_stack(
     stack_trace_colors: dict,
     log_time: str,
     args: dict,
-    is_recording: bool
+    is_recording: bool,
 ):
     stack_trace_str = assemble_stack_str(
         log_time=log_time,
@@ -362,7 +364,7 @@ def clear_stack(
         stack_trace_lines=stack_trace_map[pfix]["stacktraces"],
         stack_trace_colors=stack_trace_colors,
         args=args,
-        is_recording=is_recording
+        is_recording=is_recording,
     )
     stack_trace_map[pfix]["started"] = False
     stack_trace_map[pfix]["prefixes"] = []
