@@ -98,7 +98,6 @@ async def main_loop(args: dict, stream: BinaryIO) -> Output:
         pass
     except KeyboardInterrupt:
         import sys
-
         sys.exit(1)
     except Exception:
         print_exc()
@@ -114,6 +113,8 @@ def nice_print(
     global HEADER_SPACER
     global COUNTED_LOGS
     global PREV_RECORDED_STRING_DICT
+    global STACK_TRACE_COLORS
+    global STACK_TRACE_MAP
 
     headers = ["prefix", "level", "log_time"]
     header_line_vals = [linedict[k].strip() for k in headers]
@@ -121,11 +122,7 @@ def nice_print(
     header_len = len(" ".join(header_pure_val))
     header_space_max = 33
     header_diff = header_space_max - header_len
-    header_line_str = (
-        " ".join(header_line_vals) + " " * header_diff + args.HEADER_SPACER
-    )
-    if args.flat:
-        header_line_str = " ".join(header_line_vals)
+
     total_header_len = header_len + header_diff
     NESTED_SPACER = " "
     TOP_SPACER = (
@@ -149,17 +146,36 @@ def nice_print(
     )
     log_time = new_datetime.ctime()
 
+    if args.random or args.randomb:
+        utils.rand_prefix_colors(STACK_TRACE_COLORS, prefix_val)
+        prefix_col = STACK_TRACE_COLORS[prefix_val]
+        if args.random:
+            header_line_vals[0] = utils.style(prefix_val, color=prefix_col[1])
+        elif args.randomb:
+            header_line_vals[0] = utils.style(
+                prefix_val,
+                color=prefix_col[0] + Fore.BLACK)
+
     if args.level and any([level_val not in x for x in args.LEVELS]):
         return Output.default()
+
     prefix_exists_check = [
         prefix_val.strip().lower() != x.lower() for x in args.PREFIXES
     ]
+
     if args.PREFIXES and all(prefix_exists_check) or not prefix_val:
         return Output.default()
+
     ignore_prefix_check = [prefix_val in x for x in args.IGNORE_PREFIXES]
+
     if args.ignore_prefix and any(ignore_prefix_check):
         return Output.default()
 
+    header_line_str = (
+        " ".join(header_line_vals) + " " * header_diff + args.HEADER_SPACER
+    )
+    if args.flat:
+        header_line_str = " ".join(header_line_vals)
     string_list = []
     key_order = []
     meta_keys = []
@@ -251,8 +267,7 @@ def nice_print(
     stack_trace_str = ""
     # Stack Traces
     if args.FIND_STACKTRACES:
-        global STACK_TRACE_COLORS
-        global STACK_TRACE_MAP
+
         run_find_stack = True
         if args.PREFIXES:
             run_find_stack = prefix_val.lower() in [
@@ -352,7 +367,7 @@ def nice_print(
         if args.divider:
             divider_str = args.DIVIDER + "\n"
 
-        if args.title and args.show_title_every_line:
+        if args.title and args.show_title:
             timing_title = (
                 "🕒 ({} secs) ".format(args.TIMING_SECONDS_INTERVAL)
                 if args.WILL_COUNT

@@ -122,6 +122,21 @@ def ncparser() -> argparse.ArgumentParser:
         help="Filters allow for any of the terms",
     )
     parser.add_argument(
+        "--show-title",
+        action="store_true",
+        help="Show Title",
+    )
+    parser.add_argument(
+        "--random",
+        action="store_true",
+        help="Random Prefix Foreground Color"
+    )
+    parser.add_argument(
+        "--randomb",
+        action="store_true",
+        help="Random Prefix Background Color"
+    )
+    parser.add_argument(
         "--any", action="store_true", help="Filters allow for any of the terms"
     )
     parser.add_argument(
@@ -235,7 +250,6 @@ def post_process_args(args: dict):
     else:
         pass
     if args.title:
-        args.show_title_every_line = True
         args.TITLE = args.title
     if args.per_line:
         args.PER_LINE = args.per_line

@@ -238,6 +238,15 @@ def flatten_dict(d):
     return new_dict
 
 
+def rand_prefix_colors(stack_trace_colors: dict, prefix: str):
+    rand_idx = random.randint(2, 11)
+    if prefix not in stack_trace_colors:
+        stack_trace_colors[prefix] = (
+            BACK_COLORS[rand_idx],
+            FORE_COLORS[rand_idx],
+        )
+
+
 def find_stack(
     stack_trace_map: dict,
     pfix: str,
@@ -254,13 +263,8 @@ def find_stack(
             "prefixes": [],
             "stacktraces": [],
             "started": False
-            # "flushed": False
         }
-        rand_idx = random.randint(2, 11)
-        stack_trace_colors[pfix] = (
-            BACK_COLORS[rand_idx],
-            FORE_COLORS[rand_idx],
-        )
+        rand_prefix_colors(stack_trace_colors, pfix)
     if "stack" in string_dict:
         stack_msg = string_dict["stack"]
         stack_parts = stack_msg.split("\n", 1)
