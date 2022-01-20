@@ -281,45 +281,33 @@ def rand_prefix_colors(
     prefix: str,
     ignore_col: any = None
 ):
-    rand_idx = random.randint(2, 11)
+    ignore_index = None
+    if ignore_col:
+        try:
+            ignore_index = BACK_COLORS.index(ignore_col)
+        except Exception:
+            try:
+                ignore_index = FORE_COLORS.index(ignore_col)
+            except Exception:
+                pass
+
+    rand_idx = None
+
+    if ignore_index:
+        while True:
+            rand_idx = random.randint(2, 11)
+            if rand_idx != ignore_index:
+                break
+    else:
+        rand_idx = random.randint(2, 11)
     back_col = BACK_COLORS[rand_idx]
     fore_col = FORE_COLORS[rand_idx]
-
-    if ignore_col and (back_col == ignore_col) or (fore_col == ignore_col):
-        rand_prefix_colors(stack_trace_colors, prefix, ignore_col)
 
     if prefix not in stack_trace_colors:
         stack_trace_colors[prefix] = (
             back_col,
             fore_col
         )
-
-# def rand_prefix_colors(
-#     stack_trace_colors: dict,
-#     prefix: str,
-#     ignore_col: any = None,
-#     found: bool = False
-# ) -> bool:
-#     rand_idx = random.randint(2, 11)
-#     back_col = BACK_COLORS[rand_idx]
-#     fore_col = FORE_COLORS[rand_idx]
-
-#     while not found:
-#         if ignore_col and (back_col == ignore_col) or (fore_col == ignore_col):
-#             return rand_prefix_colors(stack_trace_colors,
-#                                       prefix,
-#                                       ignore_col,
-#                                       False)
-#         else:
-#             return rand_prefix_colors(stack_trace_colors,
-#                                       prefix,
-#                                       ignore_col,
-#                                       True)
-
-#     if prefix not in stack_trace_colors:
-#         stack_trace_colors[prefix] = (back_col, fore_col)
-#     return True
-
 
 
 def find_stack(
@@ -424,6 +412,7 @@ def assemble_stack_str(
         continued_str = "\n\n(...continued)"
 
     file_regex = r".*\((.*)\).*"
+    tab_space = " " * 4
     for stack_trace in stack_trace_lines[:num_stack_traces]:
         result = re.match(file_regex, stack_trace)
         print_default = False
@@ -440,13 +429,13 @@ def assemble_stack_str(
                 new_stack_trace += before_path
                 new_stack_trace += style(file_path, color=Fore.CYAN) + ":"
                 new_stack_trace += style(line_num, color=Fore.YELLOW)
-                stack_trace_str += f"\n\t{new_stack_trace}"
+                stack_trace_str += f"\n{tab_space}{new_stack_trace}"
                 print_default = False
 
         else:
             print_default = True
         if print_default:
-            stack_trace_str += f"\n\t{stack_trace}"
+            stack_trace_str += f"\n{tab_space}{stack_trace}"
 
     # stack_trace_str += "\n\t".join(stack_trace_lines[:num_stack_traces])
     # stack_trace_str += "\n"

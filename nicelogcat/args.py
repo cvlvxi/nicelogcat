@@ -157,6 +157,11 @@ def ncparser() -> argparse.ArgumentParser:
         help="Apply random to msg"
     )
     parser.add_argument(
+        "--no-random",
+        action="store_true",
+        help="Disable random colors"
+    )
+    parser.add_argument(
         "--any", action="store_true", help="Filters allow for any of the terms"
     )
     parser.add_argument(

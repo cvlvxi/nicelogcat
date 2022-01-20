@@ -185,7 +185,7 @@ def nice_print(
     )
     log_time = new_datetime.ctime()
     value_col = args.colors["V_COLOR"]
-    if args.random or args.randomb:
+    if (args.random or args.randomb) and not (args.no_random):
         utils.rand_prefix_colors(STACK_TRACE_COLORS,
                                  h.prefix.value,
                                  ignore_col=args.colors["K_COLOR"])
@@ -453,7 +453,7 @@ def nice_print(
                             if args.WILL_COUNT else "")
             title_str = utils.style(
                 "{}{} @".format(timing_title, args.title),
-                color=Fore.GREEN if not args.random else
+                color=Fore.GREEN if (not args.random or args.no_random) else
                 STACK_TRACE_COLORS[headers.prefix.value][1])
             header_line_str = title_str + " " + header_line_str
         if args.ALLOW_RECORD and is_recording:
