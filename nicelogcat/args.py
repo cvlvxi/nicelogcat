@@ -186,6 +186,7 @@ def ncparser() -> argparse.ArgumentParser:
         help="Only these Prefix",
     )
     parser.add_argument(
+        "-i",
         "--ignore-prefix",
         action="append",
         nargs="*",

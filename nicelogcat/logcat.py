@@ -4,7 +4,7 @@ import nicelogcat.utils as utils
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
-from colorama import init, Fore
+from colorama import init, Fore, Back
 from pynput import keyboard
 from traceback import print_exc
 from typing import Tuple, Optional, BinaryIO, List
@@ -415,11 +415,22 @@ def nice_print(
         return ("", False)
     if args.HIGHLIGHT_PHRASES:
         for phrase in set(args.HIGHLIGHT_PHRASES):
-            if phrase in result_str:
-                result_str = result_str.replace(
-                    phrase,
-                    utils.style(phrase, color=args.colors["HIGHLIGHT_COLOR"]),
-                )
+            if phrase.lower() in result_str.lower():
+                start_idx = result_str.lower().find(phrase.lower())
+                end_index = start_idx + len(phrase)
+                first_section = utils.style(
+                    result_str[0:start_idx],
+                    color=args.colors["HIGHLIGHT_OFF_COLOR"])
+                middle_section = utils.style(
+                    result_str[start_idx:end_index],
+                    color=args.colors["HIGHLIGHT_COLOR"])
+                end_section = utils.style(
+                    result_str[end_index:],
+                    color=args.colors["HIGHLIGHT_OFF_COLOR"])
+                result_str = first_section + middle_section + end_section
+                result_str = utils.style('\n\n' + '-' * 200 + '\n\n', color=Fore.YELLOW) + \
+                             result_str + \
+                             utils.style('\n\n' + '-' * 200 + '\n\n', color=Fore.YELLOW)
     if args.FILTERS:
         if args.filter_any or args.any:
             will_print = any(
@@ -471,11 +482,23 @@ def nice_print(
     return Output(output="", change_detected=False, stacktrace=stack_trace_str)
 
 
+def cool_log(thing_to_print):
+    print('\n' * 1)
+    print(utils.style(thing_to_print, color=Fore.YELLOW))
+    print('\n' * 1)
+
+
+import sys
+
+
 def on_press(key):
     global IS_RECORDING
     global INIT_NOT_RECORDING_STATE
     global RECORD_FILE_NAME
     global TITLE
+    SHOW_ALL_PREFIXES_KEY = keyboard.Key.f10
+    SHOW_ARGS_KEY = keyboard.Key.f11
+    ARGS_USED = ' '.join(sys.argv[1:])
     set_filename = False
     try:
         if key == RECORD_KEY:
@@ -497,5 +520,7 @@ def on_press(key):
                 if curr_files:
                     next_inc = int(curr_files[-1]) + 1
                 RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
+        elif key == SHOW_ARGS_KEY:
+            cool_log(f"vlogall {ARGS_USED}")
     except AttributeError:
         pass
