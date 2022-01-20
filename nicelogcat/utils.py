@@ -114,23 +114,61 @@ def norm_str3(some_str):
     return some_str
 
 
+LOG_LEVEL_CHOICES = {
+    "e": "ERROR",
+    "error": "ERROR",
+    "ERROR": "ERROR",
+    "w": "WARN",
+    "warn": "WARN",
+    "WARN": "WARN",
+    "d": "DEBUG",
+    "debug": "DEBUG",
+    "DEBUG": "DEBUG",
+    "i": "INFO",
+    "info": "INFO",
+    "INFO": "INFO",
+    "v": "VERBOSE",
+    "verbose": "VERBOSE",
+    "VERBOSE": "VERBOSE",
+    "f": "FATAL",
+    "fatal": "FATAL",
+    "FATAL": "FATAL",
+    "s": "SILENT",
+    "silent": "SILENT",
+    "SILENT": "SILENT",
+}
+
+LOG_VALS = set(LOG_LEVEL_CHOICES.values())
+# MAX_LOG_WIDTH = max([len(x) for x in LOG_VALS])
+MAX_LOG_WIDTH = 5
+
+
 def get_log_level(log_level, colors):
+    result = [None, None, MAX_LOG_WIDTH]
     if log_level.lower() == "w":
-        return colors["LEVEL_WARN_COLOR"] + "WARN" + Style.RESET_ALL
+        result[0] = colors["LEVEL_WARN_COLOR"]
+        result[1] = "WARN"
     elif log_level.lower() == "e":
-        return colors["LEVEL_ERROR_COLOR"] + "ERROR" + Style.RESET_ALL
+        result[0] = colors["LEVEL_ERROR_COLOR"]
+        result[1] = "ERROR"
     elif log_level.lower() == "d":
-        return colors["LEVEL_WARN_COLOR"] + "DEBUG" + Style.RESET_ALL
+        result[0] = colors["LEVEL_WARN_COLOR"]
+        result[1] = "DEBUG"
     elif log_level.lower() == "i":
-        return colors["LEVEL_INFO_COLOR"] + "INFO" + Style.RESET_ALL
+        result[0] = colors["LEVEL_INFO_COLOR"]
+        result[1] = "INFO"
     elif log_level.lower() == "v":
-        return colors["LEVEL_INFO_COLOR"] + "VERBOSE" + Style.RESET_ALL
+        result[0] = colors["LEVEL_INFO_COLOR"]
+        result[1] = "VERBOSE"
     elif log_level.lower() == "f":
-        return colors["LEVEL_ERROR_COLOR"] + "FATAL" + Style.RESET_ALL
+        result[0] = colors["LEVEL_ERROR_COLOR"]
+        result[1] = "FATAL"
     elif log_level.lower() == "s":
-        return Fore.BLACK + "SILENT" + Style.RESET_ALL
+        result[0] = Fore.BLACK
+        result[1] = "SILENT"
     else:
         raise ValueError("Unknown log_level found: {}".format(log_level))
+    return result
 
 
 def remove_col_from_val(val):
@@ -238,13 +276,50 @@ def flatten_dict(d):
     return new_dict
 
 
-def rand_prefix_colors(stack_trace_colors: dict, prefix: str):
+def rand_prefix_colors(
+    stack_trace_colors: dict,
+    prefix: str,
+    ignore_col: any = None
+):
     rand_idx = random.randint(2, 11)
+    back_col = BACK_COLORS[rand_idx]
+    fore_col = FORE_COLORS[rand_idx]
+
+    if ignore_col and (back_col == ignore_col) or (fore_col == ignore_col):
+        rand_prefix_colors(stack_trace_colors, prefix, ignore_col)
+
     if prefix not in stack_trace_colors:
         stack_trace_colors[prefix] = (
-            BACK_COLORS[rand_idx],
-            FORE_COLORS[rand_idx],
+            back_col,
+            fore_col
         )
+
+# def rand_prefix_colors(
+#     stack_trace_colors: dict,
+#     prefix: str,
+#     ignore_col: any = None,
+#     found: bool = False
+# ) -> bool:
+#     rand_idx = random.randint(2, 11)
+#     back_col = BACK_COLORS[rand_idx]
+#     fore_col = FORE_COLORS[rand_idx]
+
+#     while not found:
+#         if ignore_col and (back_col == ignore_col) or (fore_col == ignore_col):
+#             return rand_prefix_colors(stack_trace_colors,
+#                                       prefix,
+#                                       ignore_col,
+#                                       False)
+#         else:
+#             return rand_prefix_colors(stack_trace_colors,
+#                                       prefix,
+#                                       ignore_col,
+#                                       True)
+
+#     if prefix not in stack_trace_colors:
+#         stack_trace_colors[prefix] = (back_col, fore_col)
+#     return True
+
 
 
 def find_stack(

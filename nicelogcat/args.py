@@ -127,6 +127,21 @@ def ncparser() -> argparse.ArgumentParser:
         help="Show Title",
     )
     parser.add_argument(
+        "--align-head",
+        action="store_true",
+        help="Align headers via Prefix / Log LEVEL "
+    )
+    parser.add_argument(
+        "--no-align-head",
+        action="store_true",
+        help="Disable Align headers via Prefix / Log LEVEL "
+    )
+    parser.add_argument(
+        "--align-simple",
+        action="store_true",
+        help="Align Use simple alignment method"
+    )
+    parser.add_argument(
         "--random",
         action="store_true",
         help="Random Prefix Foreground Color"

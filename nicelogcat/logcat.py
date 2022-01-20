@@ -1,14 +1,13 @@
 import time
 import os
 import nicelogcat.utils as utils
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Tuple, Optional
-from colorama import init, Fore, Back
+from colorama import init, Fore
 from pynput import keyboard
 from traceback import print_exc
-from typing import BinaryIO
-
+from typing import Tuple, Optional, BinaryIO, List
 
 init(autoreset=True)
 INIT_NOT_RECORDING_STATE = True
@@ -20,6 +19,17 @@ IS_RECORDING = False
 TITLE = ""
 STACK_TRACE_MAP = {}
 STACK_TRACE_COLORS = {}
+HEADER_LEN_COUNTER = Counter()
+HEADER_FREQ_COUNTER = Counter()
+HEADER_OCCURENCE_CHECK_LIMIT = 5000
+MOST_FREQ_HEADER_LINE = ""
+MAX_LEN_HEADER_WITH_PADDING = ""
+
+
+@dataclass
+class ValueColor:
+    value: str
+    color: any
 
 
 @dataclass
@@ -31,6 +41,38 @@ class Output:
     @staticmethod
     def default() -> "Output":
         return Output("", False, "")
+
+
+@dataclass
+class Headers:
+    prefix: ValueColor
+    log_level: ValueColor
+    log_time: ValueColor
+
+    def length(self, delimiter: str = " ", raw: bool = False) -> int:
+        return len(self.to_string(delimiter=delimiter, raw=raw))
+
+    def prefix_only_string(
+        self,
+        delimiter: str = " ",
+    ) -> str:
+        return (delimiter * len(self.log_time.value)) + delimiter + \
+               (delimiter * len(self.log_level.value)) + delimiter + \
+               self.prefix.value
+
+    def to_string(self, delimiter: str = " ", raw: bool = False) -> str:
+        return delimiter.join([
+            self.log_time.value if raw else utils.style(
+                self.log_time.value, self.log_time.color),
+            self.log_level.value if raw else utils.style(
+                self.log_level.value, self.log_level.color),
+            self.prefix.value
+            if raw else utils.style(self.prefix.value, self.prefix.color),
+        ])
+
+    @property
+    def keys(self):
+        return ["log_time", "level", "prefix"]
 
 
 async def main_loop(args: dict, stream: BinaryIO) -> Output:
@@ -50,27 +92,25 @@ async def main_loop(args: dict, stream: BinaryIO) -> Output:
                 continue
             date = utils.norm_str3(parts[0])
             timestamp = utils.norm_str3(parts[1])
-            pid = utils.norm_str3(parts[2])
-            log_level = utils.get_log_level(
-                utils.norm_str3(parts[4]), args.colors
-            )
+            (log_level_color, log_level,
+             max_log_width) = utils.get_log_level(utils.norm_str3(parts[4]),
+                                                  args.colors)
+            if len(log_level) < max_log_width:
+                log_level += " " * (max_log_width - len(log_level))
+
             prefix = utils.norm_str3(parts[5]).strip()
             msg = utils.norm_str3(" ".join(parts[6:]))
-            log_time = utils.style(
-                date + " " + timestamp, color=args.colors["TIME_COLOR"]
-            )
-            the_keys = ["level", "prefix", "log_time", "pid", "message"]
-            the_values = [
-                log_level,
-                utils.style(prefix, color=args.colors["PREFIX_COLOR"]),
-                log_time,
-                pid,
-                msg,
-            ]
-            linedict = utils.nested_dicts(dict(zip(the_keys, the_values)))
+            log_time = f"[{date}] {timestamp}"
+            headers = Headers(
+                prefix=ValueColor(value=prefix,
+                                  color=args.colors["PREFIX_COLOR"]),
+                log_level=ValueColor(value=log_level, color=log_level_color),
+                log_time=ValueColor(value=log_time,
+                                    color=args.colors["TIME_COLOR"]))
             output: Output = nice_print(
                 args,
-                linedict,
+                headers,
+                utils.nested_dicts({"message": msg}),
                 rawline=line,
                 force_disable_print=FORCE_DISABLE_PRINT,
                 is_recording=IS_RECORDING,
@@ -80,9 +120,8 @@ async def main_loop(args: dict, stream: BinaryIO) -> Output:
             if FORCE_DISABLE_PRINT or args.disable:
                 output.output = ""
             if args.ALLOW_RECORD and IS_RECORDING:
-                record_file_path = os.path.join(
-                    args.RECORD_DIR, RECORD_FILE_NAME
-                )
+                record_file_path = os.path.join(args.RECORD_DIR,
+                                                RECORD_FILE_NAME)
                 write_to_file = True
                 if args.RECORD_KEYS_DIFF:
                     write_to_file = output.change_detected
@@ -106,7 +145,8 @@ async def main_loop(args: dict, stream: BinaryIO) -> Output:
 
 def nice_print(
     args: dict,
-    linedict: dict,
+    headers: Headers,
+    message_dict: dict,
     rawline: str,
     force_disable_print: bool,
     is_recording: bool,
@@ -116,28 +156,24 @@ def nice_print(
     global PREV_RECORDED_STRING_DICT
     global STACK_TRACE_COLORS
     global STACK_TRACE_MAP
+    global HEADER_LEN_COUNTER
+    global HEADER_FREQ_COUNTER
+    global HEADER_OCCURENCE_CHECK_LIMIT
+    global MOST_FREQ_HEADER_LINE
 
-    headers = ["prefix", "level", "log_time"]
-    header_line_vals = [linedict[k].strip() for k in headers]
-    header_pure_val = [utils.remove_col_from_val(x) for x in header_line_vals]
+    h: Headers = headers
+    header_pure_val = [h.prefix.value, h.log_level.value, h.log_time.value]
     header_len = len(" ".join(header_pure_val))
     header_space_max = 33
     header_diff = header_space_max - header_len
 
     total_header_len = header_len + header_diff
-    NESTED_SPACER = " "
-    TOP_SPACER = (
-        "\n{}{}".format(args.HEADER_SPACER, " " * total_header_len)
-        if (not args.flat or args.no_flat)
-        else " "
-    )
-
-    level_val = utils.remove_col_from_val(linedict["level"])
-    prefix_val = utils.remove_col_from_val(linedict["prefix"])
-    log_time = utils.remove_col_from_val(linedict["log_time"])
-    readable_time: datetime = datetime.strptime(log_time, "%m-%d %H:%M:%S.%f")
-    value_col = args.colors["V_COLOR"]
-
+    nested_spacer = " "
+    top_spacer = ("\n{}{}".format(args.HEADER_SPACER, " " *
+                                  total_header_len) if
+                  (not args.flat or args.no_flat) else " ")
+    readable_time: datetime = datetime.strptime(h.log_time.value,
+                                                "[%m-%d] %H:%M:%S.%f")
     # Assume current year?
     new_datetime = datetime(
         year=datetime.now().year,
@@ -148,43 +184,103 @@ def nice_print(
         second=readable_time.second,
     )
     log_time = new_datetime.ctime()
-
+    value_col = args.colors["V_COLOR"]
     if args.random or args.randomb:
-        utils.rand_prefix_colors(STACK_TRACE_COLORS, prefix_val)
-        prefix_col = STACK_TRACE_COLORS[prefix_val]
+        utils.rand_prefix_colors(STACK_TRACE_COLORS,
+                                 h.prefix.value,
+                                 ignore_col=args.colors["K_COLOR"])
+        prefix_col = STACK_TRACE_COLORS[h.prefix.value]
         if args.random:
             chosen_col = prefix_col[1]
         elif args.randomb:
             chosen_col = prefix_col[0] + Fore.BLACK
-        header_line_vals[0] = utils.style(prefix_val, color=chosen_col)
+        headers.prefix.color = chosen_col
         if args.random_msg:
             value_col = chosen_col
 
-    if args.level and any([level_val not in x for x in args.LEVELS]):
+    if args.level and any([h.log_level.value not in x for x in args.LEVELS]):
         return Output.default()
 
     prefix_exists_check = [
-        prefix_val.strip().lower() != x.lower() for x in args.PREFIXES
+        h.prefix.value.strip().lower() != x.lower() for x in args.PREFIXES
     ]
 
-    if args.PREFIXES and all(prefix_exists_check) or not prefix_val:
+    if args.PREFIXES and all(prefix_exists_check) or not h.prefix.value:
         return Output.default()
 
-    ignore_prefix_check = [prefix_val in x for x in args.IGNORE_PREFIXES]
+    ignore_prefix_check = [h.prefix.value in x for x in args.IGNORE_PREFIXES]
 
     if args.ignore_prefix and any(ignore_prefix_check):
         return Output.default()
 
-    header_line_str = (
-        " ".join(header_line_vals) + " " * header_diff + args.HEADER_SPACER
-    )
-    if args.flat:
-        header_line_str = " ".join(header_line_vals)
+    header_line_str = headers.to_string()
+    header_line_raw_str = headers.to_string(raw=True)
+    raw_len = len(header_line_raw_str)
+    raw_key = headers.prefix_only_string(delimiter="x")
+
+    if args.align_head and not args.no_align_head:
+        if args.align_simple:
+            if raw_key not in HEADER_LEN_COUNTER:
+                HEADER_LEN_COUNTER[raw_key] = raw_len
+            if not MOST_FREQ_HEADER_LINE:
+                MOST_FREQ_HEADER_LINE = raw_key
+            if raw_len > len(MOST_FREQ_HEADER_LINE):
+                MOST_FREQ_HEADER_LINE = raw_key
+        else:
+            if raw_key not in HEADER_LEN_COUNTER:
+                HEADER_LEN_COUNTER[raw_key] = raw_len
+
+            if raw_key not in HEADER_LEN_COUNTER:
+                HEADER_FREQ_COUNTER[raw_key] = 1
+            else:
+                header_occurences = HEADER_FREQ_COUNTER[raw_key]
+                if header_occurences != HEADER_OCCURENCE_CHECK_LIMIT:
+                    HEADER_FREQ_COUNTER[raw_key] += 1
+
+            # Choosing the right header line
+            if not MOST_FREQ_HEADER_LINE:
+                MOST_FREQ_HEADER_LINE = raw_key
+
+            def find_index_in_most_common(most_common: List[Tuple[str, int]],
+                                          line: str) -> int:
+                key_list = [x[0] for x in most_common]
+                idx = key_list.index(line)
+                return idx
+
+            # Counters
+            biggest_headers = HEADER_LEN_COUNTER.most_common()
+            most_freq_headers = HEADER_FREQ_COUNTER.most_common()
+
+            # Which index
+            curr_size_idx = find_index_in_most_common(biggest_headers, raw_key)
+            curr_top_size_idx = find_index_in_most_common(
+                biggest_headers, MOST_FREQ_HEADER_LINE)
+            curr_freq_idx = find_index_in_most_common(most_freq_headers,
+                                                      raw_key)
+            curr_top_freq_idx = find_index_in_most_common(
+                most_freq_headers, MOST_FREQ_HEADER_LINE)
+            if (curr_size_idx < curr_top_size_idx) and \
+               (curr_freq_idx < curr_top_freq_idx):
+                MOST_FREQ_HEADER_LINE = raw_key
+
+    padding = 10
+    most_freq_len = len(MOST_FREQ_HEADER_LINE)
+    most_freq_len_with_padding = most_freq_len + padding
+    # print(HEADER_LEN_COUNTER.most_common())
+    if args.align_head:
+        if raw_len < most_freq_len_with_padding:
+            header_line_str += " " * (most_freq_len_with_padding - raw_len)
+        else:
+            diff = raw_len - most_freq_len_with_padding
+            header_line_str += " " * (diff)
+
+    header_line_str += args.HEADER_SPACER
+
     string_list = []
     key_order = []
     meta_keys = []
 
-    for k, v in linedict.items():
+    for k, v in message_dict.items():
         if isinstance(v, dict):
             meta_keys.append(k)
         if (k not in meta_keys) and (k not in key_order):
@@ -197,7 +293,7 @@ def nice_print(
     for key in key_order + meta_keys:
         key_count = 0
         k = key
-        v = linedict[key]
+        v = message_dict[key]
 
         if args.IGNORE_KEYS and k in args.IGNORE_KEYS:
             continue
@@ -205,8 +301,7 @@ def nice_print(
             continue
         if not k:
             continue
-
-        if k in headers:
+        if k in headers.keys:
             continue
         k = utils.norm_str(k)
         non_color_k = k
@@ -215,20 +310,18 @@ def nice_print(
         if isinstance(v, dict):
             (new_key_count, nice_str) = utils.nice_print_dict(
                 key_count,
-                TOP_SPACER,
+                top_spacer,
                 v,
                 key_color=args.colors["K_COLOR"],
                 value_color=value_col,
                 args=args,
             )
             key_count = new_key_count
-            string_list.append(
-                "{}:{}{}".format(
-                    k,
-                    NESTED_SPACER,
-                    nice_str,
-                )
-            )
+            string_list.append("{}:{}{}".format(
+                k,
+                nested_spacer,
+                nice_str,
+            ))
             nested_d = utils.find_dict_in_v(v, rawline)
             if nested_d:
                 string_dict.update(utils.flatten_dict(nested_d))
@@ -238,7 +331,7 @@ def nice_print(
             nested_d = utils.find_dict_in_v(v, rawline)
             (new_key_count, nice_str) = utils.nice_print_dict(
                 key_count,
-                TOP_SPACER,
+                top_spacer,
                 nested_d,
                 key_color=args.colors["K_COLOR"],
                 value_color=value_col,
@@ -252,39 +345,34 @@ def nice_print(
 
             else:
                 string_dict[non_color_k] = v
-                string_list.append(
-                    "{}{}: {}{}".format(
-                        args.LEFT_OF_KEY_VALUE,
-                        k,
-                        utils.style(v, color=value_col),
-                        args.RIGHT_OF_KEY_VALUE,
-                    )
-                )
+                string_list.append("{}{}: {}{}".format(
+                    args.LEFT_OF_KEY_VALUE,
+                    k,
+                    utils.style(v, color=value_col),
+                    args.RIGHT_OF_KEY_VALUE,
+                ))
 
     if args.raw:
-        string_list.append(
-            "[{}: {}]".format(
-                utils.style("rawline", color=args.colors["K_COLOR"]),
-                utils.style(rawline, color=value_col),
-            )
-        )
+        string_list.append("[{}: {}]".format(
+            utils.style("rawline", color=args.colors["K_COLOR"]),
+            utils.style(rawline, color=value_col),
+        ))
     stack_trace_str = ""
     # Stack Traces
     if args.FIND_STACKTRACES:
 
         run_find_stack = True
         if args.PREFIXES:
-            run_find_stack = prefix_val.lower() in [
+            run_find_stack = headers.prefix.value.lower() in [
                 p.lower() for p in args.PREFIXES
             ]
         if args.IGNORE_PREFIXES:
-            run_find_stack = not (
-                prefix_val.lower() in [p.lower() for p in args.IGNORE_PREFIXES]
-            )
+            run_find_stack = not (headers.prefix.value.lower()
+                                  in [p.lower() for p in args.IGNORE_PREFIXES])
         if run_find_stack:
             stack_trace_str = utils.find_stack(
                 STACK_TRACE_MAP,
-                prefix_val,
+                headers.prefix.value,
                 string_dict,
                 STACK_TRACE_COLORS,
                 log_time,
@@ -305,15 +393,11 @@ def nice_print(
 
     if args.RECORD_KEYS_DIFF:
         for key in args.RECORD_KEYS_DIFF:
-            if (
-                key in string_dict
-                and key not in args.PREV_RECORDED_STRING_DICT
-            ):
+            if (key in string_dict
+                    and key not in args.PREV_RECORDED_STRING_DICT):
                 args.PREV_RECORDED_STRING_DICT[key] = string_dict[key]
-            if (
-                key in string_dict
-                and string_dict[key] != args.PREV_RECORDED_STRING_DICT[key]
-            ):
+            if (key in string_dict and
+                    string_dict[key] != args.PREV_RECORDED_STRING_DICT[key]):
                 changed_keys.append(key)
                 change_detected = True
         # Highlight keys
@@ -339,17 +423,14 @@ def nice_print(
     if args.FILTERS:
         if args.filter_any or args.any:
             will_print = any(
-                [f.lower() in result_str_no_col.lower() for f in args.FILTERS]
-            )
+                [f.lower() in result_str_no_col.lower() for f in args.FILTERS])
         else:
             will_print = all(
-                [f.lower() in result_str_no_col.lower() for f in args.FILTERS]
-            )
+                [f.lower() in result_str_no_col.lower() for f in args.FILTERS])
     if args.FILTER_OUT:
         if will_print:
             will_print = not any(
-                [f in result_str_no_col.lower() for f in args.FILTER_OUT]
-            )
+                [f in result_str_no_col.lower() for f in args.FILTER_OUT])
     count_str = ""
     if will_print:
         if args.WILL_COUNT:
@@ -357,32 +438,23 @@ def nice_print(
             args.t1 = time.time()
             if (args.t1 - args.t0) >= args.TIMING_SECONDS_INTERVAL:
                 args.t0 = args.t1
-                count_str = (
-                    utils.style(
-                        "Number of logs after {} seconds: {}".format(
-                            args.TIMING_SECONDS_INTERVAL, args.COUNTED_LOGS
-                        ),
-                        color=args.colors["TIMING_COLOR"],
-                    )
-                    + "\n"
-                )
+                count_str = (utils.style(
+                    "Number of logs after {} seconds: {}".format(
+                        args.TIMING_SECONDS_INTERVAL, args.COUNTED_LOGS),
+                    color=args.colors["TIMING_COLOR"],
+                ) + "\n")
                 COUNTED_LOGS = 0
         divider_str = ""
         if args.divider:
             divider_str = args.DIVIDER + "\n"
 
         if args.title and args.show_title:
-            timing_title = (
-                "🕒 ({} secs) ".format(args.TIMING_SECONDS_INTERVAL)
-                if args.WILL_COUNT
-                else ""
-            )
+            timing_title = ("🕒 ({} secs) ".format(args.TIMING_SECONDS_INTERVAL)
+                            if args.WILL_COUNT else "")
             title_str = utils.style(
                 "{}{} @".format(timing_title, args.title),
-                color=Fore.GREEN
-                if not args.random
-                else STACK_TRACE_COLORS[prefix_val][1]
-            )
+                color=Fore.GREEN if not args.random else
+                STACK_TRACE_COLORS[headers.prefix.value][1])
             header_line_str = title_str + " " + header_line_str
         if args.ALLOW_RECORD and is_recording:
             header_line_str = "🟢" + " " + header_line_str
@@ -390,18 +462,11 @@ def nice_print(
             header_line_str = "🔴" + " " + header_line_str
 
         # THE PRINT
-        thing_to_print = (
-            divider_str
-            + count_str
-            + header_line_str
-            + TOP_SPACER
-            + args.SPACER
-            + result_str
-        )
+        thing_to_print = (divider_str + count_str + header_line_str +
+                          top_spacer + args.SPACER + result_str)
         if args.flat and not args.no_flat:
-            thing_to_print = (
-                count_str + header_line_str + args.SPACER + result_str.strip()
-            )
+            thing_to_print = (count_str + header_line_str + args.SPACER +
+                              result_str.strip())
         return Output(thing_to_print, change_detected, stack_trace_str)
     return Output(output="", change_detected=False, stacktrace=stack_trace_str)
 
@@ -425,8 +490,7 @@ def on_press(key):
             if set_filename:
                 curr_files = [
                     int(x.rsplit(".log")[0].rsplit("_")[-1])
-                    for x in os.listdir(RECORD_DIR)
-                    if TITLE in x
+                    for x in os.listdir(RECORD_DIR) if TITLE in x
                 ]
                 curr_files = sorted(curr_files)
                 next_inc = 0
