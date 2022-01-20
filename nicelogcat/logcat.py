@@ -428,9 +428,6 @@ def nice_print(
                     result_str[end_index:],
                     color=args.colors["HIGHLIGHT_OFF_COLOR"])
                 result_str = first_section + middle_section + end_section
-                result_str = utils.style('\n\n' + '-' * 200 + '\n\n', color=Fore.YELLOW) + \
-                             result_str + \
-                             utils.style('\n\n' + '-' * 200 + '\n\n', color=Fore.YELLOW)
     if args.FILTERS:
         if args.filter_any or args.any:
             will_print = any(
