@@ -1,13 +1,15 @@
 import time
 import os
+import sys
 import nicelogcat.utils as utils
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from colorama import init, Fore, Back
 from pynput import keyboard
 from traceback import print_exc
 from typing import Tuple, Optional, BinaryIO, List
+
 
 init(autoreset=True)
 INIT_NOT_RECORDING_STATE = True
@@ -24,6 +26,9 @@ HEADER_FREQ_COUNTER = Counter()
 HEADER_OCCURENCE_CHECK_LIMIT = 5000
 MOST_FREQ_HEADER_LINE = ""
 MAX_LEN_HEADER_WITH_PADDING = ""
+COMMON_MSGS = defaultdict(dict)
+COMMON_MSGS_TO_RAWLINE = {}
+COMMON_MSG_TIMEFRAME_SECS = 120
 
 
 @dataclass
@@ -34,13 +39,14 @@ class ValueColor:
 
 @dataclass
 class Output:
+    header_output: str
     output: str
     change_detected: bool
     stacktrace: str
 
     @staticmethod
     def default() -> "Output":
-        return Output("", False, "")
+        return Output("", "", False, "")
 
 
 @dataclass
@@ -78,10 +84,18 @@ class Headers:
 async def main_loop(args: dict, stream: BinaryIO) -> Output:
     global TITLE
     global RECORD_DIR
+    global COMMON_MSGS
+    global COMMON_MSGS_TO_RAWLINE
     RECORD_DIR = args.record_dir
     TITLE = args.title.lower().replace(" ", "_") if args.title else ""
+    common_t0 = time.time()
     try:
         while True:
+            common_t1 = time.time()
+            if (common_t1 - common_t0) >= COMMON_MSG_TIMEFRAME_SECS:
+                common_t0 = time.time()
+                COMMON_MSGS = defaultdict(dict)
+                COMMON_MSGS_TO_RAWLINE = {}
             line = next(stream)
             line = line.decode(errors="ignore")
             line = line.strip()
@@ -119,6 +133,12 @@ async def main_loop(args: dict, stream: BinaryIO) -> Output:
                 continue
             if FORCE_DISABLE_PRINT or args.disable:
                 output.output = ""
+            # Record common_msgs
+            if output.output not in COMMON_MSGS[headers.prefix.value]:
+                COMMON_MSGS[headers.prefix.value] = Counter()
+                COMMON_MSGS_TO_RAWLINE[headers.prefix.value] = defaultdict(str)
+            COMMON_MSGS[headers.prefix.value][output.output] += 1
+            COMMON_MSGS_TO_RAWLINE[output.output] = line.strip()
             if args.ALLOW_RECORD and IS_RECORDING:
                 record_file_path = os.path.join(args.RECORD_DIR,
                                                 RECORD_FILE_NAME)
@@ -128,9 +148,10 @@ async def main_loop(args: dict, stream: BinaryIO) -> Output:
                 with open(record_file_path, "a") as f:
                     if write_to_file:
                         if output.output:
-                            f.write(output.output + "\n")
+                            # Removing Colour
+                            f.write(utils.remove_col_from_val(output.output) + "\n")
                         if output.stacktrace:
-                            f.write(output.stacktrace + "\n")
+                            f.write(utils.remove_col_from_val(output.stacktrace) + "\n")
             yield output
 
     except StopIteration:
@@ -436,9 +457,10 @@ def nice_print(
             will_print = all(
                 [f.lower() in result_str_no_col.lower() for f in args.FILTERS])
     if args.FILTER_OUT:
-        if will_print:
-            will_print = not any(
-                [f in result_str_no_col.lower() for f in args.FILTER_OUT])
+        for phrase in args.FILTER_OUT:
+            if phrase.lower() in result_str_no_col.lower():
+                will_print = False
+                break
     count_str = ""
     if will_print:
         if args.WILL_COUNT:
@@ -460,9 +482,9 @@ def nice_print(
             timing_title = ("🕒 ({} secs) ".format(args.TIMING_SECONDS_INTERVAL)
                             if args.WILL_COUNT else "")
             title_str = utils.style(
-                "{}{} @".format(timing_title, args.title),
+                "{}{}".format(timing_title, args.title),
                 color=Fore.GREEN if (not args.random or args.no_random) else
-                STACK_TRACE_COLORS[headers.prefix.value][1])
+                STACK_TRACE_COLORS[headers.prefix.value][0] + Fore.BLACK)
             header_line_str = title_str + " " + header_line_str
         if args.ALLOW_RECORD and is_recording:
             header_line_str = "🟢" + " " + header_line_str
@@ -470,22 +492,31 @@ def nice_print(
             header_line_str = "🔴" + " " + header_line_str
 
         # THE PRINT
-        thing_to_print = (divider_str + count_str + header_line_str +
-                          top_spacer + args.SPACER + result_str)
+        header_output = divider_str + count_str + header_line_str + top_spacer + args.SPACER
+        thing_to_print = result_str
         if args.flat and not args.no_flat:
-            thing_to_print = (count_str + header_line_str + args.SPACER +
-                              result_str.strip())
-        return Output(thing_to_print, change_detected, stack_trace_str)
-    return Output(output="", change_detected=False, stacktrace=stack_trace_str)
+            header_output = count_str + header_line_str + args.SPACER
+            thing_to_print = result_str.strip()
+        # Add the extra stuff
+        if args.linespace > 0:
+            thing_to_print = thing_to_print + '\n' * args.linespace
+
+        return Output(header_output = header_output,
+                      output = thing_to_print,
+                      change_detected = change_detected,
+                      stacktrace = stack_trace_str)
+    return Output(header_output = "", output="", change_detected=False, stacktrace=stack_trace_str)
 
 
-def cool_log(thing_to_print):
+def cool_log(thing_to_print, use_color = True):
     print('\n' * 1)
-    print(utils.style(thing_to_print, color=Fore.YELLOW))
+    if use_color:
+        print(utils.style(thing_to_print, color=Fore.YELLOW))
+    else:
+        print(thing_to_print)
     print('\n' * 1)
 
 
-import sys
 
 
 def on_press(key):
@@ -493,7 +524,9 @@ def on_press(key):
     global INIT_NOT_RECORDING_STATE
     global RECORD_FILE_NAME
     global TITLE
-    SHOW_ALL_PREFIXES_KEY = keyboard.Key.f10
+    global COMMON_MSGS
+    global COMMON_MSGS_TO_RAWLINE
+    SHOW_COMMON_MSGS = keyboard.Key.f10
     SHOW_ARGS_KEY = keyboard.Key.f11
     ARGS_USED = ' '.join(sys.argv[1:])
     set_filename = False
@@ -519,5 +552,24 @@ def on_press(key):
                 RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
         elif key == SHOW_ARGS_KEY:
             cool_log(f"vlogall {ARGS_USED}")
+        elif key == SHOW_COMMON_MSGS:
+            common_str = utils.style("Common Phrases Found (count - msg)", Fore.YELLOW)
+            common_str += "\n" * 3
+            msgs = []
+            for prefix, msg_counter_dict in COMMON_MSGS.items():
+                more_than_1 = {msg:count for msg,count in msg_counter_dict.items() if count > 1}
+                for msg, count in more_than_1.items():
+                    common_str += "\t"
+                    common_str += utils.style(prefix, Fore.YELLOW)
+                    common_str += " - "
+                    common_str += f"{count} - {msg}\n"
+                    msgs.append(msg)
+            # Common Str Filter out
+            common_str +="\n" * 3
+            common_str += utils.style("Add this to nicelogcat to filter out these phrases:\n", Fore.YELLOW)
+            common_str += "\n"
+            common_str += ' '.join([f"\n-x \"{COMMON_MSGS_TO_RAWLINE[msg].split(' ', 8)[-1].strip()}\"" + " \\" for msg in msgs])
+            common_str = common_str[0:-1]
+            cool_log(common_str, False)
     except AttributeError:
         pass

@@ -393,7 +393,7 @@ def assemble_stack_str(
     # Header Line
     back_color, fore_color = stack_trace_colors[prefix]
     # stack_trace_str += style(f"{prefix}Exception", fore_color)
-    stack_trace_str += style(f"\t{prefix}", back_color + Fore.BLACK)
+    stack_trace_str += style(f" {prefix}", back_color + Fore.BLACK)
     stack_trace_str += style(" @ ", back_color + Fore.BLACK)
     stack_trace_str += style(log_time, back_color + Fore.BLACK)
     stack_trace_str += style(" " * 30, back_color + Fore.BLACK)

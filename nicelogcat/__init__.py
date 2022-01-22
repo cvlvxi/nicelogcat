@@ -1,4 +1,5 @@
 import sys
+import os
 import asyncio
 import traceback
 from pynput import keyboard
@@ -43,7 +44,7 @@ async def prepare():
                     if args.FIND_STACKTRACES:
                         print(out.stacktrace)
                     else:
-                        print(out.output)
+                        print(out.header_output + out.output)
                 main_loop(args, stream=sys.stdin.buffer.raw)
                 listener.join()
             except Exception:

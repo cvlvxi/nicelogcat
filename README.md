@@ -102,3 +102,8 @@ adb logcat | nicelogcat --flat --level ERROR
 ## More!
 
 More hacks and surprises
+
+
+
+
+
