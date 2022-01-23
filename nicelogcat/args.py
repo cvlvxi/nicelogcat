@@ -422,6 +422,15 @@ def main_args():
             all_json_files = sys.argv[config_dir_idx + 2:]
         else:
             all_json_files = sys.argv[1:]
+        extra_args = None
+        extra_args_start_idx = -1
+        for idx, i in enumerate(all_json_files):
+            if i.startswith('-'):
+                extra_args_start_idx = idx
+                break;
+        if extra_args_start_idx != -1:
+            extra_args =  all_json_files[extra_args_start_idx:]
+            all_json_files = all_json_files[:extra_args_start_idx]
         all_json_objs = []
         for json_file in all_json_files:
             json_file = Path(json_file)
@@ -460,6 +469,7 @@ def main_args():
                 json_file.close
             all_json_objs.append(json_obj)
 
+
         def unify_json_objs(all_json_objs: List[dict]) -> dict:
             unified_obj = {}
             for obj in all_json_objs:
@@ -469,6 +479,29 @@ def main_args():
                     unified_obj[k] = v
             return unified_obj
 
+        def parse_extra_args(extra_args: List[str]) -> dict:
+            if not extra_args:
+                return {}
+            extra_args_dict = {}
+            prev_val = None
+            for idx, item in enumerate(extra_args):
+                if item != prev_val:
+                    if not prev_val:
+                        prev_val = item
+                        continue
+                    if prev_val.startswith('-') and item.startswith('-'):
+                        extra_args_dict[prev_val] = True
+                    elif prev_val.startswith('-') and not item.startswith('-'):
+                        extra_args_dict[prev_val] = item
+                    prev_val = item
+                if idx == (len(extra_args)-1):
+                    if prev_val.startswith('-') and item.startswith('-'):
+                        extra_args_dict[item] = True
+                    elif prev_val.startswith('-') and not item.startswith('-'):
+                        extra_args_dict[prev_val] = item
+            return extra_args_dict
+        if extra_args:
+            all_json_objs.append(parse_extra_args(extra_args))
         json_args_obj = unify_json_objs(all_json_objs)
         parser = ncparser()
         args = get_args(parser, dict_obj=json_args_obj)

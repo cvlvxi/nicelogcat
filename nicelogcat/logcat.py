@@ -10,7 +10,6 @@ from pynput import keyboard
 from traceback import print_exc
 from typing import Tuple, Optional, BinaryIO, List
 
-
 init(autoreset=True)
 INIT_NOT_RECORDING_STATE = True
 RECORD_KEY = keyboard.Key.f12
@@ -82,7 +81,9 @@ class Headers:
         return ["log_time", "level", "prefix"]
 
 
-async def main_loop(args: dict, stream: BinaryIO, json_args_obj: dict = None) -> Output:
+async def main_loop(args: dict,
+                    stream: BinaryIO,
+                    json_args_obj: dict = None) -> Output:
     global TITLE
     global RECORD_DIR
     global COMMON_MSGS
@@ -153,9 +154,13 @@ async def main_loop(args: dict, stream: BinaryIO, json_args_obj: dict = None) ->
                     if write_to_file:
                         if output.output:
                             # Removing Colour
-                            f.write(utils.remove_col_from_val(output.output) + "\n")
+                            f.write(
+                                utils.remove_col_from_val(output.output) +
+                                "\n")
                         if output.stacktrace:
-                            f.write(utils.remove_col_from_val(output.stacktrace) + "\n")
+                            f.write(
+                                utils.remove_col_from_val(output.stacktrace) +
+                                "\n")
             yield output
 
     except StopIteration:
@@ -445,13 +450,15 @@ def nice_print(
                 end_index = start_idx + len(phrase)
                 first_section = utils.style(
                     result_str[0:start_idx],
-                    color=args.colors["HIGHLIGHT_OFF_COLOR"])
+                    color=args.colors["HIGHLIGHT_OFF_COLOR"]
+                    if not args.FILTERS else "")
                 middle_section = utils.style(
                     result_str[start_idx:end_index],
                     color=args.colors["HIGHLIGHT_COLOR"])
                 end_section = utils.style(
                     result_str[end_index:],
-                    color=args.colors["HIGHLIGHT_OFF_COLOR"])
+                    color=args.colors["HIGHLIGHT_OFF_COLOR"]
+                    if not args.FILTERS else "")
                 result_str = first_section + middle_section + end_section
     if args.FILTERS:
         if args.filter_any or args.any:
@@ -505,22 +512,23 @@ def nice_print(
         if args.linespace > 0:
             thing_to_print = thing_to_print + '\n' * args.linespace
 
-        return Output(header_output = header_output,
-                      output = thing_to_print,
-                      change_detected = change_detected,
-                      stacktrace = stack_trace_str)
-    return Output(header_output = "", output="", change_detected=False, stacktrace=stack_trace_str)
+        return Output(header_output=header_output,
+                      output=thing_to_print,
+                      change_detected=change_detected,
+                      stacktrace=stack_trace_str)
+    return Output(header_output="",
+                  output="",
+                  change_detected=False,
+                  stacktrace=stack_trace_str)
 
 
-def cool_log(thing_to_print, use_color = True):
+def cool_log(thing_to_print, use_color=True):
     print('\n' * 1)
     if use_color:
         print(utils.style(thing_to_print, color=Fore.YELLOW))
     else:
         print(thing_to_print)
     print('\n' * 1)
-
-
 
 
 def on_press(key):
@@ -559,14 +567,26 @@ def on_press(key):
             if not JSON_ARGS_OBJ:
                 cool_log(f"adb logcat | nicelogcat {ARGS_USED}")
             else:
-                cool_log(f"adb logcat | nicelogcat {' '.join([str(k) + ' ' + str(v) for k,v in JSON_ARGS_OBJ.items()])}")
+                json_args = []
+                for k, v in JSON_ARGS_OBJ.items():
+                    args_str = str(k)
+                    if not isinstance(v, bool):
+                        args_str += f" {v}"
+                    json_args.append(args_str)
+                cool_log(
+                    f"adb logcat | nicelogcat {' '.join(json_args)}"
+                )
 
         elif key == SHOW_COMMON_MSGS:
-            common_str = utils.style("Common Phrases Found (count - msg)", Fore.YELLOW)
+            common_str = utils.style("Common Phrases Found (count - msg)",
+                                     Fore.YELLOW)
             common_str += "\n" * 3
             msgs = []
             for prefix, msg_counter_dict in COMMON_MSGS.items():
-                more_than_1 = {msg:count for msg,count in msg_counter_dict.items() if count > 1}
+                more_than_1 = {
+                    msg: count
+                    for msg, count in msg_counter_dict.items() if count > 1
+                }
                 for msg, count in more_than_1.items():
                     common_str += "\t"
                     common_str += utils.style(prefix, Fore.YELLOW)
@@ -574,10 +594,15 @@ def on_press(key):
                     common_str += f"{count} - {msg}\n"
                     msgs.append(msg)
             # Common Str Filter out
-            common_str +="\n" * 3
-            common_str += utils.style("Add this to nicelogcat to filter out these phrases:\n", Fore.YELLOW)
+            common_str += "\n" * 3
+            common_str += utils.style(
+                "Add this to nicelogcat to filter out these phrases:\n",
+                Fore.YELLOW)
             common_str += "\n"
-            common_str += ' '.join([f"\n-x \"{COMMON_MSGS_TO_RAWLINE[msg].split(' ', 8)[-1].strip()}\"" + " \\" for msg in msgs])
+            common_str += ' '.join([
+                f"\n-x \"{COMMON_MSGS_TO_RAWLINE[msg].split(' ', 8)[-1].strip()}\""
+                + " \\" for msg in msgs
+            ])
             common_str = common_str[0:-1]
             cool_log(common_str, False)
     except AttributeError:

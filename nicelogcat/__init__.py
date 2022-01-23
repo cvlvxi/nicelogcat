@@ -28,6 +28,7 @@ async def prepare():
         "TITLE_COLOR": Fore.MAGENTA,
         "HIGHLIGHT_COLOR": Back.RED + Fore.BLACK,
         "HIGHLIGHT_OFF_COLOR": Fore.BLACK + Back.YELLOW,
+        "HIGHLIGHT_OFF_COLOR_FILTER": Fore.GREEN + Back.BLACK,
         "V_COLOR": Fore.WHITE,
         # "K_COLOR": Back.RED + Fore.BLACK,
         "K_COLOR": Fore.GREEN,
