@@ -318,10 +318,12 @@ def post_process_args(args: dict):
         args.HIGHLIGHT_PHRASES = (utils.flatten_list(
             args.highlight) if args.highlight else [] + args.HIGHLIGHT_PHRASES)
         if args.h:
-            args.HIGHLIGHT_PHRASES += utils.flatten_list(args.h)
+            args.HIGHLIGHT_PHRASES += utils.flatten_list([x.split(' ') for x in utils.flatten_list(args.h)])
         if SHOW_ARGS:
             print("HIGHLIGHT_PHRASES: {}".format(
                 [k for k in args.HIGHLIGHT_PHRASES]))
+        args.HIGHLIGHT_PHRASES = list(set(args.HIGHLIGHT_PHRASES))
+
     if args.filterout:
         args.FILTER_OUT = utils.flatten_list(args.filterout)
         if SHOW_ARGS:
