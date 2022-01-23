@@ -179,3 +179,37 @@ adb logcat | nicelogcat --random --random-msg --flat --align-head
 
 
 <img src="screenshots/align.png"/>
+
+## Supply a JSON config or use the common ones specified in configs/
+
+e.g. see configs/base.json
+
+```json
+{
+    "--random": true,
+    "--flat": true,
+    "--align-head": true
+}
+```
+
+```
+adb logcat | nicelogcat base.json
+```
+
+<img src="screenshots/base_json.png"/>
+
+
+```json
+{
+    "--stacktrace": true,
+    "--disable": true,
+    "--linespace": "3"
+}
+```
+
+```
+adb logcat | nicelogcat stacktrace.json
+```
+
+
+<img src="screenshots/stacktrace2.png"/>

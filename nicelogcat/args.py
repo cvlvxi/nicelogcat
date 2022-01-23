@@ -205,14 +205,22 @@ def ncparser() -> jsonargparse.ArgumentParser:
 
 def get_args(
     parser: argparse.ArgumentParser,
+    dict_obj: dict = None,
     *args,
     **kwargs
 ) -> argparse.ArgumentParser:
-    if args or kwargs:
-        args = parser.parse_args(*args, **kwargs)
+    if args or kwargs or dict_obj:
+        if dict_obj:
+            list_args = []
+            for k, v in dict_obj.items():
+                list_args.append(k)
+                if not isinstance(v, bool):
+                    list_args.append(v)
+            args = parser.parse_args(list_args)
+        else:
+            args = parser.parse_args(*args, **kwargs)
     else:
         args = parser.parse_args()
-
     args.DIVIDER_SIZE = 60
 
     args.COLOR_STRS = utils.COLOR_STRS
@@ -384,7 +392,7 @@ def main_args():
         finally:
             json_file.close
         parser = ncparser()
-        args = get_args(parser, json_obj)
+        args = get_args(parser, dict_obj=json_obj)
         post_process_args(args)
     else:
         args = get_args(ncparser())

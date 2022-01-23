@@ -1,4 +1,5 @@
 {
     "--random": true,
-    "--flat": true
+    "--flat": true,
+    "--align-head": true
 }
