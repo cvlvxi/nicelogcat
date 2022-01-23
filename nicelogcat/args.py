@@ -318,7 +318,8 @@ def post_process_args(args: dict):
         args.HIGHLIGHT_PHRASES = (utils.flatten_list(
             args.highlight) if args.highlight else [] + args.HIGHLIGHT_PHRASES)
         if args.h:
-            args.HIGHLIGHT_PHRASES += utils.flatten_list([x.split(' ') for x in utils.flatten_list(args.h)])
+            args.HIGHLIGHT_PHRASES += utils.flatten_list(
+                [x.split(' ') for x in utils.flatten_list(args.h)])
         if SHOW_ARGS:
             print("HIGHLIGHT_PHRASES: {}".format(
                 [k for k in args.HIGHLIGHT_PHRASES]))
@@ -377,7 +378,14 @@ def post_process_args(args: dict):
 
 def main_args():
     config_dir_arg = '--config-dir'
-    check_json_input = ('.json' in sys.argv[-1] or '--config-dir' in sys.argv)
+    no_cfg_args = '--no-cfg'
+    check_json_input = ('.json' in sys.argv[-1] or config_dir_arg
+                        in sys.argv) and (not no_cfg_args in sys.argv)
+    config_dir_idx = -1
+    try:
+        config_dir_idx = sys.argv.index(config_dir_arg)
+    except ValueError:
+        pass
     config_dirs = []
     json_args_obj = {}
     base_json_config_dir = Path(__file__).parent.parent / 'configs'
@@ -399,9 +407,7 @@ def main_args():
     if check_json_input:
         # Check config dir
         custom_config_dir: Path = None
-        config_dir_idx = -1
         if config_dir_arg in sys.argv:
-            config_dir_idx = sys.argv.index(config_dir_arg)
             config_dir = sys.argv[config_dir_idx + 1]
             custom_config_dir = Path(config_dir)
             assert custom_config_dir.exists()
@@ -413,7 +419,7 @@ def main_args():
         all_json_files = []
         # Get all json files specified
         if config_dir_idx != -1:
-            all_json_files = sys.argv[config_dir_idx+2:]
+            all_json_files = sys.argv[config_dir_idx + 2:]
         else:
             all_json_files = sys.argv[1:]
         all_json_objs = []
@@ -421,13 +427,15 @@ def main_args():
             json_file = Path(json_file)
             if not json_file.exists():
                 file_exists = False
+
                 def try_config_dirs(json_file,
                                     config_dirs,
                                     add_suffix: bool = False) -> bool:
                     file_exists = False
                     for config_dir in config_dirs:
                         if add_suffix:
-                            new_path = Path(str(config_dir / json_file) + '.json')
+                            new_path = Path(
+                                str(config_dir / json_file) + '.json')
                             json_file_in_config_dir = new_path
                         else:
                             json_file_in_config_dir = config_dir / json_file
@@ -436,7 +444,9 @@ def main_args():
                             json_file = json_file_in_config_dir
                             break
                     return (file_exists, json_file)
-                file_exists, json_file = try_config_dirs(json_file, config_dirs)
+
+                file_exists, json_file = try_config_dirs(
+                    json_file, config_dirs)
                 if not file_exists:
                     file_exists, json_file = try_config_dirs(
                         json_file, config_dirs, True)
@@ -458,10 +468,15 @@ def main_args():
                         unified_obj[k] = v
                     unified_obj[k] = v
             return unified_obj
+
         json_args_obj = unify_json_objs(all_json_objs)
         parser = ncparser()
         args = get_args(parser, dict_obj=json_args_obj)
         post_process_args(args)
     else:
+        if config_dir_idx != -1:
+            sys.argv.remove(sys.argv[config_dir_idx+1])
+            sys.argv.remove(sys.argv[config_dir_idx])
+            sys.argv.remove(sys.argv[sys.argv.index(no_cfg_args)])
         args = get_args(ncparser())
     return (post_process_args(args), json_args_obj)
