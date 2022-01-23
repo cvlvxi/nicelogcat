@@ -93,6 +93,10 @@ options:
 
 ```
 adb logcat | nicelogcat --flat
+
+# or
+# Using configs
+
 adb logcat | nicelogcat base
 ```
 
@@ -157,6 +161,10 @@ adb logcat | nicelogcat -p Logger --flat
 
 ```
 adb logcat | nicelogcat --flat --stacktrace --disable
+
+# or
+# Using configs
+
 adb logcat | nicelogcat stacktrace
 ```
 
