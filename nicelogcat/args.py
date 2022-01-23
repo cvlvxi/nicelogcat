@@ -5,6 +5,7 @@ import sys
 import json
 import jsonargparse
 from pathlib import Path
+from glob import glob
 import nicelogcat.utils as utils
 from colorama import Fore
 from collections import defaultdict
@@ -375,15 +376,38 @@ def post_process_args(args: dict):
 
 def main_args():
     check_json_input = '.json' in sys.argv[-1]
+    config_dirs = []
     if check_json_input:
+        # Check config dir
+        config_dir_arg = '--config-dir'
+        custom_config_dir: Path = None
+        if config_dir_arg in sys.argv:
+            config_dir_idx = sys.argv.index(config_dir_arg)
+            config_dir = sys.argv[config_dir_idx + 1]
+            custom_config_dir = Path(config_dir)
+            assert custom_config_dir.exists()
+            config_dirs.append(custom_config_dir)
+
         base_json_config_dir = Path(__file__).parent.parent / 'configs'
         assert base_json_config_dir.exists()
+        config_dirs.append(base_json_config_dir)
+
         json_file = Path(sys.argv[-1])
         if not json_file.exists():
-            json_file = base_json_config_dir / json_file
-            if not json_file.exists():
-                print(f"Maybe you meant one of these from [{base_json_config_dir}]?\n")
-                print('\n'.join(['- ' + x for x in os.listdir(base_json_config_dir)]))
+            file_exists = False
+            for config_dir in config_dirs:
+                json_file_in_config_dir = config_dir / json_file
+                if json_file_in_config_dir.exists():
+                    file_exists = True
+                    json_file = json_file_in_config_dir
+                    break
+            if not file_exists:
+                print(f"Maybe you meant one of these?\n\n")
+                json_files = []
+                for config_dir in config_dirs:
+                    json_files += [x.relative_to(config_dir) for x in config_dir.glob("**/*.json")]
+                json_files = sorted(json_files)
+                print('\n'.join([str(x) for x in json_files]))
                 sys.exit(1)
         json_file = open(json_file, 'r')
         json_obj = {}
