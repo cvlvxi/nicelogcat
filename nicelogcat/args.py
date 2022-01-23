@@ -375,40 +375,55 @@ def post_process_args(args: dict):
 
 
 def main_args():
-    check_json_input = '.json' in sys.argv[-1]
+    config_dir_arg = '--config-dir'
+    check_json_input = ('.json' in sys.argv[-1] or '--config-dir' in sys.argv)
     config_dirs = []
+    base_json_config_dir = Path(__file__).parent.parent / 'configs'
+    assert base_json_config_dir.exists()
+    config_dirs.append(base_json_config_dir)
+    def print_config_help(config_dirs):
+        print(f"Maybe you meant one of these?\n\n")
+        json_files = []
+        for config_dir in config_dirs:
+            json_files += [x.relative_to(config_dir) for x in config_dir.glob("**/*.json")]
+        json_files = sorted(json_files)
+        print('\n'.join([str(x) for x in json_files]))
+        print('\n')
+        sys.exit(1)
     if check_json_input:
         # Check config dir
-        config_dir_arg = '--config-dir'
         custom_config_dir: Path = None
+        config_dir_idx = -1
         if config_dir_arg in sys.argv:
             config_dir_idx = sys.argv.index(config_dir_arg)
             config_dir = sys.argv[config_dir_idx + 1]
             custom_config_dir = Path(config_dir)
             assert custom_config_dir.exists()
             config_dirs.append(custom_config_dir)
-
-        base_json_config_dir = Path(__file__).parent.parent / 'configs'
-        assert base_json_config_dir.exists()
-        config_dirs.append(base_json_config_dir)
-
+        if config_dir_idx != -1 and sys.argv[-1] == str(custom_config_dir):
+            print_config_help(config_dirs)
         json_file = Path(sys.argv[-1])
         if not json_file.exists():
             file_exists = False
-            for config_dir in config_dirs:
-                json_file_in_config_dir = config_dir / json_file
-                if json_file_in_config_dir.exists():
-                    file_exists = True
-                    json_file = json_file_in_config_dir
-                    break
-            if not file_exists:
-                print(f"Maybe you meant one of these?\n\n")
-                json_files = []
+            def try_config_dirs(json_file, config_dirs, add_suffix:bool =False) -> bool:
+                file_exists = False
                 for config_dir in config_dirs:
-                    json_files += [x.relative_to(config_dir) for x in config_dir.glob("**/*.json")]
-                json_files = sorted(json_files)
-                print('\n'.join([str(x) for x in json_files]))
-                sys.exit(1)
+                    if add_suffix:
+                        new_path = Path(str(config_dir/json_file) + '.json')
+                        json_file_in_config_dir = new_path
+                    else:
+                        json_file_in_config_dir = config_dir / json_file
+                    if json_file_in_config_dir.exists():
+                        file_exists = True
+                        json_file = json_file_in_config_dir
+                        print(json_file)
+                        break
+                return (file_exists, json_file)
+            file_exists, json_file = try_config_dirs(json_file, config_dirs)
+            if not file_exists:
+                file_exists, json_file = try_config_dirs(json_file, config_dirs, True)
+            if not file_exists:
+                print_config_help(config_dirs)
         json_file = open(json_file, 'r')
         json_obj = {}
         try:
