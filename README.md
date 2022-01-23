@@ -93,6 +93,7 @@ options:
 
 ```
 adb logcat | nicelogcat --flat
+adb logcat | nicelogcat base
 ```
 
 Flat is a simple flag to show everything flat. Otherwise customize as you please!
@@ -156,6 +157,7 @@ adb logcat | nicelogcat -p Logger --flat
 
 ```
 adb logcat | nicelogcat --flat --stacktrace --disable
+adb logcat | nicelogcat stacktrace
 ```
 
 <img src="screenshots/stacktrace.png"/>
