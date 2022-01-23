@@ -1,9 +1,10 @@
 import sys
-import os
 import asyncio
 import traceback
 from pynput import keyboard
 from colorama import Fore, Back
+from rich.console import Console
+from rich.text import Text
 from .args import main_args, ncparser
 from .logcat import main_loop, on_press, Output
 
@@ -35,6 +36,7 @@ async def prepare():
         "TIMING_COLOR": Back.RED + Fore.BLACK,
         "DETECTED_CHANGE_COLOR": Back.RED + Fore.BLACK,
     }
+    console = Console()
     args.colors = colors
     if args.ALLOW_RECORD:
         with keyboard.Listener(on_press=on_press) as listener:
@@ -42,16 +44,13 @@ async def prepare():
                 async for out in main_loop(args, stream=sys.stdin.buffer.raw):
                     out: Output
                     if args.FIND_STACKTRACES:
-                        print(out.stacktrace)
+                        console.print(Text.from_ansi(out.stacktrace))
                     else:
-                        print(out.header_output + out.output)
+                        console.print(Text.from_ansi(out.header_output + out.output))
                 main_loop(args, stream=sys.stdin.buffer.raw)
                 listener.join()
             except Exception:
-                print(traceback.print_exc())
-    else:
-        async for log in main_loop(args, stream=sys.stdin.buffer.raw):
-            print(log)
+                console.print(traceback.print_exc())
 
 
 if __name__ == "__main__":

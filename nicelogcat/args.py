@@ -1,15 +1,18 @@
 import argparse
 import time
 import os
+import sys
+import json
+import jsonargparse
+from pathlib import Path
 import nicelogcat.utils as utils
-
 from colorama import Fore
 from collections import defaultdict
 
 SHOW_ARGS = False
 
 
-def ncparser() -> argparse.ArgumentParser:
+def ncparser() -> jsonargparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="nicelogcat")
     parser.add_argument(dest="filterz",
                         nargs="*",
@@ -200,11 +203,13 @@ def ncparser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_args(parser: argparse.ArgumentParser,
-             *args) -> argparse.ArgumentParser:
-
-    if args:
-        args = parser.parse_args(*args)
+def get_args(
+    parser: argparse.ArgumentParser,
+    *args,
+    **kwargs
+) -> argparse.ArgumentParser:
+    if args or kwargs:
+        args = parser.parse_args(*args, **kwargs)
     else:
         args = parser.parse_args()
 
@@ -361,5 +366,26 @@ def post_process_args(args: dict):
 
 
 def main_args():
-    args = get_args(ncparser())
+    check_json_input = '.json' in sys.argv[-1]
+    if check_json_input:
+        base_json_config_dir = Path(__file__).parent.parent / 'configs'
+        assert base_json_config_dir.exists()
+        json_file = Path(sys.argv[-1])
+        if not json_file.exists():
+            json_file = base_json_config_dir / json_file
+            if not json_file.exists():
+                print(f"Maybe you meant one of these from [{base_json_config_dir}]?\n")
+                print('\n'.join(['- ' + x for x in os.listdir(base_json_config_dir)]))
+                sys.exit(1)
+        json_file = open(json_file, 'r')
+        json_obj = {}
+        try:
+            json_obj = json.load(json_file)
+        finally:
+            json_file.close
+        parser = ncparser()
+        args = get_args(parser, json_obj)
+        post_process_args(args)
+    else:
+        args = get_args(ncparser())
     return post_process_args(args)

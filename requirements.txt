@@ -1,4 +1,6 @@
 colorama
 pynput
 pytest
+rich
+jsonargparse[all]
 
