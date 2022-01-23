@@ -29,6 +29,7 @@ MAX_LEN_HEADER_WITH_PADDING = ""
 COMMON_MSGS = defaultdict(dict)
 COMMON_MSGS_TO_RAWLINE = {}
 COMMON_MSG_TIMEFRAME_SECS = 120
+JSON_ARGS_OBJ = None
 
 
 @dataclass
@@ -81,11 +82,14 @@ class Headers:
         return ["log_time", "level", "prefix"]
 
 
-async def main_loop(args: dict, stream: BinaryIO) -> Output:
+async def main_loop(args: dict, stream: BinaryIO, json_args_obj: dict = None) -> Output:
     global TITLE
     global RECORD_DIR
     global COMMON_MSGS
     global COMMON_MSGS_TO_RAWLINE
+    global JSON_ARGS_OBJ
+    if json_args_obj:
+        JSON_ARGS_OBJ = json_args_obj
     RECORD_DIR = args.record_dir
     TITLE = args.title.lower().replace(" ", "_") if args.title else ""
     common_t0 = time.time()
@@ -526,6 +530,7 @@ def on_press(key):
     global TITLE
     global COMMON_MSGS
     global COMMON_MSGS_TO_RAWLINE
+    global JSON_ARGS_OBJ
     SHOW_COMMON_MSGS = keyboard.Key.f10
     SHOW_ARGS_KEY = keyboard.Key.f11
     ARGS_USED = ' '.join(sys.argv[1:])
@@ -551,7 +556,11 @@ def on_press(key):
                     next_inc = int(curr_files[-1]) + 1
                 RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
         elif key == SHOW_ARGS_KEY:
-            cool_log(f"vlogall {ARGS_USED}")
+            if not JSON_ARGS_OBJ:
+                cool_log(f"adb logcat | nicelogcat {ARGS_USED}")
+            else:
+                cool_log(f"adb logcat | nicelogcat {' '.join([str(k) + ' ' + str(v) for k,v in JSON_ARGS_OBJ.items()])}")
+
         elif key == SHOW_COMMON_MSGS:
             common_str = utils.style("Common Phrases Found (count - msg)", Fore.YELLOW)
             common_str += "\n" * 3

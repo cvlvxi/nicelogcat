@@ -87,7 +87,9 @@ options:
                         Default -1 is all.Choose a number for how many stack trace lines to show
 ```
 
-## Simple
+-----------------------------------------------
+
+# Simple
 
 ```
 adb logcat | nicelogcat --flat
@@ -97,7 +99,9 @@ Flat is a simple flag to show everything flat. Otherwise customize as you please
 
 <img src="screenshots/flat.png"/>
 
-## Filter by prefix
+-----------------------------------------------
+
+# Filter by prefix
 
 ```
 adb logcat | nicelogcat --flat -p Zygote
@@ -106,7 +110,11 @@ adb logcat | nicelogcat --flat -p Zygote
 
 <img src="screenshots/filter_prefix.png"/>
 
-## Random color for different prefixes
+
+
+-----------------------------------------------
+
+# Random color for different prefixes
 
 ```
 adb logcat | nicelogcat --flat --random
@@ -114,7 +122,9 @@ adb logcat | nicelogcat --flat --random
 
 <img src="screenshots/random_col_prefix.png"/>
 
-## Random color for different prefixes and messages
+-----------------------------------------------
+
+# Random color for different prefixes and messages
 
 ```
 adb logcat | nicelogcat --flat --random --random-msg
@@ -122,21 +132,27 @@ adb logcat | nicelogcat --flat --random --random-msg
 
 <img src="screenshots/random_col_prefix_msg.png"/>
 
-## Record
+-----------------------------------------------
+
+# Record
 
 Hit f12 while nicelogcatting to start and stop recording and write to a log file
 
 
 <img src="screenshots/3.png"/>
 
-## Record only when keys change
+-----------------------------------------------
+
+# Record only when keys change
 
 ```
 adb logcat | nicelogcat -p Logger --flat
 ```
 <img src="screenshots/4.png"/>
 
-## Nice Stacktraces
+-----------------------------------------------
+
+# Nice Stacktraces
 
 ```
 adb logcat | nicelogcat --flat --stacktrace --disable
@@ -144,11 +160,15 @@ adb logcat | nicelogcat --flat --stacktrace --disable
 
 <img src="screenshots/stacktrace.png"/>
 
-## All the colors of the Rainbow
+
+-----------------------------------------------
+# All the colors of the Rainbow
 
 <img src="screenshots/6.png"/>
 
-## Filter
+
+-----------------------------------------------
+# Filter
 
 ```
 adb logcat | nicelogcat --flat -f "isUpdate == true"
@@ -158,7 +178,9 @@ adb logcat | nicelogcat --flat -f "isUpdate == true"
 
 <img src="screenshots/filter.png"/>
 
-## Highlight
+-----------------------------------------------
+
+# Highlight
 
 Maybe you want to just highlight it rather than filter it
 
@@ -169,7 +191,9 @@ adb logcat | nicelogcat --flat -h "isUpdate == true"
 
 <img src="screenshots/highlight.png"/>
 
-## Alignment
+
+-----------------------------------------------
+# Alignment
 
 Some alignment smarts with --align-head
 
@@ -180,7 +204,15 @@ adb logcat | nicelogcat --random --random-msg --flat --align-head
 
 <img src="screenshots/align.png"/>
 
-## Supply a JSON config or use the common ones specified in configs/
+
+
+
+
+
+
+-----------------------------------------------
+
+# Supply a JSON config or use the common ones specified in configs/
 
 e.g. see configs/base.json
 
@@ -211,5 +243,60 @@ adb logcat | nicelogcat base.json
 adb logcat | nicelogcat stacktrace.json
 ```
 
+You can launch any log within the config-dir without specifying the .json suffix as well
 
-<img src="screenshots/stacktrace2.png"/>
+```
+adb logcat | nicelogcat stacktrace
+```
+
+
+
+
+
+
+-----------------------------------------------
+
+
+# Unify multiple config files
+
+
+You can also unify two configs by specifying multiple at the command line
+
+base.json
+
+```json
+{
+    "--random": true,
+    "--flat": true,
+    "--align-head": true
+}
+```
+
+/path/to/my/configs/zygote.json
+
+```json
+{
+    "-p": "Zygote"
+}
+```
+
+running:
+
+```
+adb logcat | nicelogcat --config-dir /path/to/my/configs zygote base
+```
+
+<img src="screenshots/unify.png"/>
+
+
+
+
+
+-----------------------------------------------
+
+# Check command args with f11
+
+Pressing f11 while logs are pumping
+
+
+<img src="screenshots/check_command.png"/>

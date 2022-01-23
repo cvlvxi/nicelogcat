@@ -16,7 +16,7 @@ def main():
 
 
 async def prepare():
-    args = main_args()
+    args, json_args_obj = main_args()
     colors = {
         "HEADER_STR_COLOR": Back.YELLOW + Fore.BLACK,
         "LEVEL_WARN_COLOR": Back.BLACK + Fore.YELLOW,
@@ -41,13 +41,13 @@ async def prepare():
     if args.ALLOW_RECORD:
         with keyboard.Listener(on_press=on_press) as listener:
             try:
-                async for out in main_loop(args, stream=sys.stdin.buffer.raw):
+                async for out in main_loop(args, stream=sys.stdin.buffer.raw, json_args_obj=json_args_obj):
                     out: Output
                     if args.FIND_STACKTRACES:
                         console.print(Text.from_ansi(out.stacktrace))
                     else:
                         console.print(Text.from_ansi(out.header_output + out.output))
-                main_loop(args, stream=sys.stdin.buffer.raw)
+                # main_loop(args, stream=sys.stdin.buffer.raw,  json_args_obj=json_args_obj)
                 listener.join()
             except Exception:
                 console.print(traceback.print_exc())

@@ -8,6 +8,7 @@ from pathlib import Path
 from glob import glob
 import nicelogcat.utils as utils
 from colorama import Fore
+from typing import List
 from collections import defaultdict
 
 SHOW_ARGS = False
@@ -204,12 +205,10 @@ def ncparser() -> jsonargparse.ArgumentParser:
     return parser
 
 
-def get_args(
-    parser: argparse.ArgumentParser,
-    dict_obj: dict = None,
-    *args,
-    **kwargs
-) -> argparse.ArgumentParser:
+def get_args(parser: argparse.ArgumentParser,
+             dict_obj: dict = None,
+             *args,
+             **kwargs) -> argparse.ArgumentParser:
     if args or kwargs or dict_obj:
         if dict_obj:
             list_args = []
@@ -378,18 +377,23 @@ def main_args():
     config_dir_arg = '--config-dir'
     check_json_input = ('.json' in sys.argv[-1] or '--config-dir' in sys.argv)
     config_dirs = []
+    json_args_obj = {}
     base_json_config_dir = Path(__file__).parent.parent / 'configs'
     assert base_json_config_dir.exists()
     config_dirs.append(base_json_config_dir)
+
     def print_config_help(config_dirs):
         print(f"Maybe you meant one of these?\n\n")
         json_files = []
         for config_dir in config_dirs:
-            json_files += [x.relative_to(config_dir) for x in config_dir.glob("**/*.json")]
+            json_files += [
+                x.relative_to(config_dir) for x in config_dir.glob("**/*.json")
+            ]
         json_files = sorted(json_files)
         print('\n'.join([str(x) for x in json_files]))
         print('\n')
         sys.exit(1)
+
     if check_json_input:
         # Check config dir
         custom_config_dir: Path = None
@@ -400,39 +404,62 @@ def main_args():
             custom_config_dir = Path(config_dir)
             assert custom_config_dir.exists()
             config_dirs.append(custom_config_dir)
+
         if config_dir_idx != -1 and sys.argv[-1] == str(custom_config_dir):
             print_config_help(config_dirs)
-        json_file = Path(sys.argv[-1])
-        if not json_file.exists():
-            file_exists = False
-            def try_config_dirs(json_file, config_dirs, add_suffix:bool =False) -> bool:
+
+        all_json_files = []
+        # Get all json files specified
+        if config_dir_idx != -1:
+            all_json_files = sys.argv[config_dir_idx+2:]
+        else:
+            all_json_files = sys.argv[1:]
+        all_json_objs = []
+        for json_file in all_json_files:
+            json_file = Path(json_file)
+            if not json_file.exists():
                 file_exists = False
-                for config_dir in config_dirs:
-                    if add_suffix:
-                        new_path = Path(str(config_dir/json_file) + '.json')
-                        json_file_in_config_dir = new_path
-                    else:
-                        json_file_in_config_dir = config_dir / json_file
-                    if json_file_in_config_dir.exists():
-                        file_exists = True
-                        json_file = json_file_in_config_dir
-                        print(json_file)
-                        break
-                return (file_exists, json_file)
-            file_exists, json_file = try_config_dirs(json_file, config_dirs)
-            if not file_exists:
-                file_exists, json_file = try_config_dirs(json_file, config_dirs, True)
-            if not file_exists:
-                print_config_help(config_dirs)
-        json_file = open(json_file, 'r')
-        json_obj = {}
-        try:
-            json_obj = json.load(json_file)
-        finally:
-            json_file.close
+                def try_config_dirs(json_file,
+                                    config_dirs,
+                                    add_suffix: bool = False) -> bool:
+                    file_exists = False
+                    for config_dir in config_dirs:
+                        if add_suffix:
+                            new_path = Path(str(config_dir / json_file) + '.json')
+                            json_file_in_config_dir = new_path
+                        else:
+                            json_file_in_config_dir = config_dir / json_file
+                        if json_file_in_config_dir.exists():
+                            file_exists = True
+                            json_file = json_file_in_config_dir
+                            break
+                    return (file_exists, json_file)
+                file_exists, json_file = try_config_dirs(json_file, config_dirs)
+                if not file_exists:
+                    file_exists, json_file = try_config_dirs(
+                        json_file, config_dirs, True)
+                if not file_exists:
+                    print_config_help(config_dirs)
+            json_file = open(json_file, 'r')
+            json_obj = {}
+            try:
+                json_obj = json.load(json_file)
+            finally:
+                json_file.close
+            all_json_objs.append(json_obj)
+
+        def unify_json_objs(all_json_objs: List[dict]) -> dict:
+            unified_obj = {}
+            for obj in all_json_objs:
+                for k, v in obj.items():
+                    if k not in unified_obj:
+                        unified_obj[k] = v
+                    unified_obj[k] = v
+            return unified_obj
+        json_args_obj = unify_json_objs(all_json_objs)
         parser = ncparser()
-        args = get_args(parser, dict_obj=json_obj)
+        args = get_args(parser, dict_obj=json_args_obj)
         post_process_args(args)
     else:
         args = get_args(ncparser())
-    return post_process_args(args)
+    return (post_process_args(args), json_args_obj)
