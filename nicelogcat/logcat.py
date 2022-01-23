@@ -1,6 +1,7 @@
 import time
 import os
 import sys
+import json
 import nicelogcat.utils as utils
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -324,7 +325,6 @@ def nice_print(
         key_count = 0
         k = key
         v = message_dict[key]
-
         if args.IGNORE_KEYS and k in args.IGNORE_KEYS:
             continue
         if not v:
@@ -468,6 +468,7 @@ def nice_print(
             will_print = all(
                 [f.lower() in result_str_no_col.lower() for f in args.FILTERS])
     if args.FILTER_OUT:
+
         for phrase in args.FILTER_OUT:
             if phrase.lower() in result_str_no_col.lower():
                 will_print = False
@@ -564,6 +565,9 @@ def on_press(key):
                     next_inc = int(curr_files[-1]) + 1
                 RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
         elif key == SHOW_ARGS_KEY:
+            print("\n"*2)
+            print("Command to run the following:")
+            print()
             if not JSON_ARGS_OBJ:
                 cool_log(f"adb logcat | nicelogcat {ARGS_USED}")
             else:
@@ -576,6 +580,10 @@ def on_press(key):
                 cool_log(
                     f"adb logcat | nicelogcat {' '.join(json_args)}"
                 )
+                print("Or add this to your JSON configs")
+                print()
+                print(utils.style(json.dumps(JSON_ARGS_OBJ, indent=2), color=Fore.RED))
+                print('\n'*2)
 
         elif key == SHOW_COMMON_MSGS:
             common_str = utils.style("Common Phrases Found (count - msg)",

@@ -443,6 +443,20 @@ def assemble_stack_str(
 
     return stack_trace_str
 
+def explode_single_item_list(some_list):
+    item = []
+    if len(some_list) == 1:
+        item = some_list[0]
+        quoted = item.count('"') >= 2
+        space_delimited = item.count(' ') >= 2
+        if space_delimited:
+            item = item.replace('[', '').replace(']', '').strip()
+            if quoted:
+                item = item.split('\" ')
+                item = [x.replace('"', '') for x in item if x]
+            else:
+                item = item.split(' ')
+    return item
 
 def clear_stack(
     stack_trace_map: dict,

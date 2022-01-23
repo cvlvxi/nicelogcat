@@ -264,7 +264,6 @@ def get_args(parser: argparse.ArgumentParser,
 
     return args
 
-
 def post_process_args(args: dict):
 
     if args.spacer == "newline":
@@ -290,6 +289,9 @@ def post_process_args(args: dict):
                                                for k in args.HIGHLIGHT_KEYS]))
     if args.ignore_keys:
         args.IGNORE_KEYS = utils.flatten_list(args.ignore_keys)
+        expanded_items = utils.explode_single_item_list(args.IGNORE_KEYS)
+        if expanded_items:
+            args.IGNORE_KEYS = expanded_items
         if SHOW_ARGS:
             print("IGNORE_KEYS: {}".format([k for k in args.IGNORE_KEYS]))
     if args.prefix:
@@ -327,6 +329,9 @@ def post_process_args(args: dict):
 
     if args.filterout:
         args.FILTER_OUT = utils.flatten_list(args.filterout)
+        expanded_items = utils.explode_single_item_list(args.FILTER_OUT)
+        if expanded_items:
+            args.FILTER_OUT = expanded_items
         if SHOW_ARGS:
             print("FILTER_OUT: {}".format([k for k in args.FILTER_OUT]))
     if args.header_spacer == "newline":
@@ -476,7 +481,10 @@ def main_args():
                 for k, v in obj.items():
                     if k not in unified_obj:
                         unified_obj[k] = v
-                    unified_obj[k] = v
+                    else:
+                        if unified_obj[k] == True:
+                            continue
+                        unified_obj[k] += v
             return unified_obj
 
         def parse_extra_args(extra_args: List[str]) -> dict:
@@ -492,13 +500,22 @@ def main_args():
                     if prev_val.startswith('-') and item.startswith('-'):
                         extra_args_dict[prev_val] = True
                     elif prev_val.startswith('-') and not item.startswith('-'):
-                        extra_args_dict[prev_val] = item
+                        if prev_val in extra_args_dict:
+                            extra_args_dict[prev_val] += f",{item}"
+                        else:
+                            extra_args_dict[prev_val] = item
                     prev_val = item
                 if idx == (len(extra_args)-1):
                     if prev_val.startswith('-') and item.startswith('-'):
                         extra_args_dict[item] = True
                     elif prev_val.startswith('-') and not item.startswith('-'):
-                        extra_args_dict[prev_val] = item
+                        if prev_val in extra_args_dict:
+                            extra_args_dict[prev_val] += f",{item}"
+                        else:
+                            extra_args_dict[prev_val] = item
+            for k, v in extra_args_dict.items():
+                if ',' in v:
+                    extra_args_dict[k] = ' '.join([f"\"{x}\"" for x in v.split(",")])
             return extra_args_dict
         if extra_args:
             all_json_objs.append(parse_extra_args(extra_args))
