@@ -212,7 +212,7 @@ adb logcat | nicelogcat --random --random-msg --flat --align-head
 
 -----------------------------------------------
 
-# Supply a JSON config or use the common ones specified in configs/
+# Use JSON configs
 
 e.g. see configs/base.json
 
