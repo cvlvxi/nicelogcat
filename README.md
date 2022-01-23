@@ -89,6 +89,23 @@ options:
 
 -----------------------------------------------
 
+# Before Getting started
+
+It's recommended that add something like this to your bashrc / zshrc for simpicity
+
+```
+alias nicelogcat="adb logcat | nicelogcat"
+
+# or if you have a custom configs/ directory with your json files [see below]
+alias nicelogcat="adb logcat | nicelogcat --config-dir /path/to/your/configs
+
+alias nlog="nicelogcat"
+```
+
+-----------------------------------------------
+
+```
+
 # Simple
 
 ```
