@@ -1,6 +1,7 @@
 import re
 import json
 import random
+from datetime import datetime
 from functools import reduce
 from typing import List, TypeVar
 from colorama import Fore, Style, Back
@@ -396,7 +397,9 @@ def assemble_stack_str(
     stack_trace_str += style(f" {prefix}", back_color + Fore.BLACK)
     stack_trace_str += style(" @ ", back_color + Fore.BLACK)
     stack_trace_str += style(log_time, back_color + Fore.BLACK)
-    stack_trace_str += style(" " * 30, back_color + Fore.BLACK)
+    stack_trace_str += style(" " * 5, back_color + Fore.BLACK)
+    stack_trace_str += style(f"Current Time: {datetime.now().ctime()}", Back.GREEN + Fore.BLACK)
+    stack_trace_str += style(" " * 5, back_color + Fore.BLACK)
     stack_trace_str += "\n"
     # Stack Prefixes
 
@@ -456,6 +459,8 @@ def explode_single_item_list(some_list):
                 item = [x.replace('"', '') for x in item if x]
             else:
                 item = item.split(' ')
+    if isinstance(item, str):
+        item = [item]
     return item
 
 def clear_stack(
