@@ -55,21 +55,6 @@ BACK_COLORS = [
     Back.LIGHTBLACK_EX,
 ]
 
-LOG_LEVEL_CHOICES = {
-    "e": "ERROR",
-    "error": "ERROR",
-    "ERROR": "ERROR",
-    "w": "WARN",
-    "warn": "WARN",
-    "WARN": "WARN",
-    "d": "DEBUG",
-    "debug": "DEBUG",
-    "DEBUG": "DEBUG",
-    "i": "INFO",
-    "info": "INFO",
-    "INFO": "INFO",
-}
-
 COLOR_RESETTERS = [Fore.RESET, Back.RESET, Style.RESET_ALL]
 
 ALL_COLORS = FORE_COLORS + BACK_COLORS + COLOR_RESETTERS
@@ -450,8 +435,8 @@ def explode_single_item_list(some_list):
     item = []
     if len(some_list) == 1:
         item = some_list[0]
-        quoted = item.count('"') >= 2
-        space_delimited = item.count(' ') >= 2
+        quoted = item.count('"') >= 1
+        space_delimited = item.count(' ') >= 1
         if space_delimited:
             item = item.replace('[', '').replace(']', '').strip()
             if quoted:

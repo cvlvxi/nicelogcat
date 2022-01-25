@@ -112,14 +112,20 @@ async def main_loop(args: dict,
                 continue
             date = utils.norm_str3(parts[0])
             timestamp = utils.norm_str3(parts[1])
+            # Find loglevel index
+            levels = [level for level in utils.LOG_LEVEL_CHOICES.keys() if len(level) == 1]
+            log_level_idx = [idx for idx, val in enumerate(parts) if len(val.strip()) == 1 and val.strip().lower() in levels]
+            if not log_level_idx:
+                continue
+            log_level_idx = log_level_idx[0]
             (log_level_color, log_level,
-             max_log_width) = utils.get_log_level(utils.norm_str3(parts[4]),
+             max_log_width) = utils.get_log_level(utils.norm_str3(parts[log_level_idx]),
                                                   args.colors)
             if len(log_level) < max_log_width:
                 log_level += " " * (max_log_width - len(log_level))
 
-            prefix = utils.norm_str3(parts[5]).strip()
-            msg = utils.norm_str3(" ".join(parts[6:]))
+            prefix = utils.norm_str3(parts[log_level_idx+1]).strip()
+            msg = utils.norm_str3(" ".join(parts[log_level_idx+2:]))
             log_time = f"[{date}] {timestamp}"
             headers = Headers(
                 prefix=ValueColor(value=prefix,
@@ -203,8 +209,14 @@ def nice_print(
     top_spacer = ("\n{}{}".format(args.HEADER_SPACER, " " *
                                   total_header_len) if
                   (not args.flat or args.no_flat) else " ")
-    readable_time: datetime = datetime.strptime(h.log_time.value,
-                                                "[%m-%d] %H:%M:%S.%f")
+    readable_time = ""
+    try:
+        readable_time: datetime = datetime.strptime(h.log_time.value,
+                                                    "[%m-%d] %H:%M:%S.%f")
+    except Exception:
+        readable_time: datetime = datetime.strptime(h.log_time.value,
+                                                    "[%Y-%m-%d] %H:%M:%S.%f")
+
     # Assume current year?
     new_datetime = datetime(
         year=datetime.now().year,
@@ -550,7 +562,7 @@ def on_press(key):
             INIT_NOT_RECORDING_STATE = False
             if not INIT_NOT_RECORDING_STATE and IS_RECORDING:
                 if not TITLE:
-                    TITLE = os.path.dirname(os.getcwd())
+                    TITLE = "logcat"
                 set_filename = True
             if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
                 set_filename = True
