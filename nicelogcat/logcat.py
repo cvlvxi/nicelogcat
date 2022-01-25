@@ -160,14 +160,9 @@ async def main_loop(args: dict,
                 with open(record_file_path, "a") as f:
                     if write_to_file:
                         if output.output:
-                            # Removing Colour
-                            f.write(
-                                utils.remove_col_from_val(output.output) +
-                                "\n")
+                            f.write(f"{headers.to_string()} {output.output}")
                         if output.stacktrace:
-                            f.write(
-                                utils.remove_col_from_val(output.stacktrace) +
-                                "\n")
+                            f.write(f"{output.stacktrace}")
             yield output
 
     except StopIteration:
