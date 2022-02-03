@@ -395,6 +395,7 @@ def nice_print(
             utils.style(rawline, color=value_col),
         ))
     stack_trace_str = ""
+    stack_trace_str_no_col = ""
     # Stack Traces
     if args.FIND_STACKTRACES:
 
@@ -416,7 +417,9 @@ def nice_print(
                 args=args,
                 is_recording=IS_RECORDING,
             )
-
+            if stack_trace_str:
+                stack_trace_str_no_col = utils.remove_col_from_val(stack_trace_str)
+        
     will_print = True
     result_str = args.SPACER.join([x for x in string_list if x])
     result_str_no_col = utils.remove_col_from_val(result_str)
@@ -471,15 +474,29 @@ def nice_print(
         if args.filter_any or args.any:
             will_print = any(
                 [f.lower() in result_str_no_col.lower() for f in args.FILTERS])
+            if stack_trace_str:
+                will_print = any(
+                    [f.lower() in stack_trace_str_no_col.lower() for f in args.FILTERS])
         else:
             will_print = all(
                 [f.lower() in result_str_no_col.lower() for f in args.FILTERS])
+            if stack_trace_str:
+                will_stack_trace = all(
+                    [f.lower() in stack_trace_str_no_col.lower() for f in args.FILTERS])
+                if not will_stack_trace:
+                    stack_trace_str = ""
     if args.FILTER_OUT:
-
         for phrase in args.FILTER_OUT:
             if phrase.lower() in result_str_no_col.lower():
                 will_print = False
                 break
+        if stack_trace_str:
+            for phrase in args.FILTER_OUT:
+                will_not_stack_trace = phrase.lower() in stack_trace_str_no_col.lower()
+                if will_not_stack_trace:
+                    stack_trace_str = ""
+                    break
+
     count_str = ""
     if will_print:
         if args.WILL_COUNT:
