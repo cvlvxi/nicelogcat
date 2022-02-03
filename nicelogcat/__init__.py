@@ -19,10 +19,6 @@ async def prepare():
     args, json_args_obj = main_args()
     colors = {
         "HEADER_STR_COLOR": Back.YELLOW + Fore.BLACK,
-        "LEVEL_WARN_COLOR": Back.BLACK + Fore.YELLOW,
-        "LEVEL_ERROR_COLOR": Back.BLACK + Fore.RED,
-        "LEVEL_INFO_COLOR": Back.BLACK + Fore.GREEN,
-        "TIME_COLOR": Fore.LIGHTBLACK_EX + Back.YELLOW,
         "LEVEL_WARN_COLOR": Fore.YELLOW,
         "LEVEL_ERROR_COLOR": Fore.RED,
         "LEVEL_INFO_COLOR": Fore.GREEN,
@@ -46,16 +42,24 @@ async def prepare():
     if args.ALLOW_RECORD:
         with keyboard.Listener(on_press=on_press) as listener:
             try:
-                async for out in main_loop(args, stream=sys.stdin.buffer.raw, json_args_obj=json_args_obj):
+                async for out in main_loop(args,
+                                           stream=sys.stdin.buffer.raw,
+                                           json_args_obj=json_args_obj):
                     out: Output
                     if args.FIND_STACKTRACES:
                         console.print(Text.from_ansi(out.stacktrace))
                     else:
-                        console.print(Text.from_ansi(out.header_output + out.output))
+                        console.print(
+                            Text.from_ansi(out.header_output + out.output))
                 # main_loop(args, stream=sys.stdin.buffer.raw,  json_args_obj=json_args_obj)
                 listener.join()
             except Exception:
                 console.print(traceback.print_exc())
+
+
+def dog():
+    parser = ncparser()
+    args = parser.parse_args()
 
 
 if __name__ == "__main__":

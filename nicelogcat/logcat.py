@@ -126,7 +126,15 @@ async def main_loop(args: dict,
 
             prefix = utils.norm_str3(parts[log_level_idx+1]).strip()
             msg = utils.norm_str3(" ".join(parts[log_level_idx+2:]))
-            log_time = f"[{date}] {timestamp}"
+            print(args.no_secs)
+            import sys
+            sys.exit(1)
+            if args.no_secs:
+                timestamp = timestamp.rsplit(".", 1)[0]
+            if args.no_date:
+                log_time = f"{timestamp}"
+            else:
+                log_time = f"[{date}] {timestamp}"
             headers = Headers(
                 prefix=ValueColor(value=prefix,
                                   color=args.colors["PREFIX_COLOR"]),
@@ -419,7 +427,7 @@ def nice_print(
             )
             if stack_trace_str:
                 stack_trace_str_no_col = utils.remove_col_from_val(stack_trace_str)
-        
+
     will_print = True
     result_str = args.SPACER.join([x for x in string_list if x])
     result_str_no_col = utils.remove_col_from_val(result_str)

@@ -1,214 +1,94 @@
-import argparse
 import time
 import os
 import sys
 import json
-import jsonargparse
 from pathlib import Path
-from glob import glob
-import nicelogcat.utils as utils
-from colorama import Fore
-from typing import List
+from dataclasses import dataclass
 from collections import defaultdict
+from jsonargparse import ArgumentParser, ActionConfigFile
+
+from typing import *
+import nicelogcat.utils as utils
 
 SHOW_ARGS = False
 
 
-def ncparser() -> jsonargparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="nicelogcat")
-    parser.add_argument(dest="filterz",
-                        nargs="*",
-                        type=str,
-                        help="List of filters")
-    parser.add_argument("--title", default="", type=str, help="Title to show")
-    parser.add_argument(
-        "--suspend-util",
-        default=None,
-        type=str,
-        help="Suspend until this is found",
-    )
-    parser.add_argument(
-        "--spacer",
-        default="space",
-        choices=["newline", "space", "tab", "pipe"],
-        help="spacer to use",
-    )
-    parser.add_argument(
-        "-s",
-        "--linespace",
-        type=int,
-        default=0,
-        help="Number of spaces between lines",
-    )
-    parser.add_argument("--divider",
-                        action="store_true",
-                        help="Add a divider per line")
-    parser.add_argument("--disable", action="store_true", help="Disable Print")
-    parser.add_argument("--flat", action="store_true", help="Flat")
-    parser.add_argument("--no-flat", action="store_true", help="No Flat")
-    parser.add_argument("--raw", action="store_true", help="Include raw line")
-    parser.add_argument(
-        "--title-line-color",
-        default=Fore.BLUE,
-        choices=utils.COLOR_STRS,
-        help="Color to use if showing title every line",
-    )
-    parser.add_argument("--per-line",
-                        type=int,
-                        default=4,
-                        help="Keys per line")
-    parser.add_argument(
-        "--time-per-secs",
-        type=int,
-        default=0,
-        help="Will time how many logs called every [internal] secs",
-    )
+@dataclass
+class FilterType:
+    _all = "all"
+    _any = "any"
 
-    parser.add_argument(
-        "--header-spacer",
-        default="space",
-        choices=["newline", "space"],
-        help="Heading spacer between log",
-    )
-    parser.add_argument(
-        "-x",
-        "--filterout",
-        action="append",
-        nargs="*",
-        default=None,
-        type=str,
-        help="List of filters to filter out",
-    )
-    parser.add_argument(
-        "--keys",
-        action="append",
-        nargs="*",
-        required=False,
-        default=None,
-        help="Highlight keys",
-    )
-    parser.add_argument(
-        "--highlight",
-        nargs="*",
-        action="append",
-        required=False,
-        default=None,
-        help="Highlight these phrase",
-    )
-    parser.add_argument(
-        "--h",
-        nargs="*",
-        action="append",
-        required=False,
-        default=None,
-        help="Highlight these phrase",
-    )
-    parser.add_argument("--record-dir",
-                        type=str,
-                        default=None,
-                        help="Record Directory")
-    parser.add_argument(
-        "--record-keys",
-        action="append",
-        nargs="*",
-        required=False,
-        default=None,
-        help="When recording, only record when these keys change",
-    )
-    parser.add_argument(
-        "-f",
-        "--filters",
-        action="append",
-        nargs="*",
-        default=None,
-        type=str,
-        help="List of filters",
-    )
-    parser.add_argument(
-        "--filter-any",
-        action="store_true",
-        help="Filters allow for any of the terms",
-    )
-    parser.add_argument(
-        "-t",
-        "--show-title",
-        action="store_true",
-        help="Show Title",
-    )
-    parser.add_argument("--align-head",
-                        action="store_true",
-                        help="Align headers via Prefix / Log LEVEL ")
-    parser.add_argument("--no-align-head",
-                        action="store_true",
-                        help="Disable Align headers via Prefix / Log LEVEL ")
-    parser.add_argument("--align-simple",
-                        action="store_true",
-                        help="Align Use simple alignment method")
-    parser.add_argument("--random",
-                        action="store_true",
-                        help="Random Prefix Foreground Color")
-    parser.add_argument("--randomb",
-                        action="store_true",
-                        help="Random Prefix Background Color")
-    parser.add_argument("--random-msg",
-                        action="store_true",
-                        help="Apply random to msg")
-    parser.add_argument("--no-random",
-                        action="store_true",
-                        help="Disable random colors")
-    parser.add_argument("--any",
-                        action="store_true",
-                        help="Filters allow for any of the terms")
-    parser.add_argument("--stacktrace",
-                        action="store_true",
-                        help="Find Stack Traces")
-    parser.add_argument(
-        "-l",
-        "--level",
-        action="append",
-        choices=list(utils.LOG_LEVEL_CHOICES.keys()),
-        default=None,
-        type=str,
-        help="Only these levels",
-    )
-    parser.add_argument(
-        "-p",
-        "--prefix",
-        action="append",
-        nargs="*",
-        default=None,
-        type=str,
-        help="Only these Prefix",
-    )
-    parser.add_argument(
-        "-i",
-        "--ignore-prefix",
-        action="append",
-        nargs="*",
-        default=None,
-        type=str,
-        help="Ignore These Prefix",
-    )
-    parser.add_argument(
-        "--ignore-keys",
-        action="append",
-        nargs="*",
-        default=None,
-        type=str,
-        help="Ignore These Keys",
-    )
-    parser.add_argument(
-        "--num-stack-traces",
-        help="Default -1 is all." +
-        "Choose a number for how many stack trace lines to show",
-    )
+@dataclass
+class Filters:
+    include: Optional[List[str]] = None
+    include_type: FilterType = FilterType._all
+    exclude: Optional[List[str]] = None
+    exclude_type: FilterType = FilterType._any
+    prefixes: Optional[List[str]] = None
+    exclude_prefixes: Optional[List[str]] = None
+    log_levels: Optional[List[str]] = None
+
+@dataclass
+class StacktraceSettings:
+    num_stack_traces: int = -1
+
+@dataclass
+class LineCustomizers:
+    no_date: bool = False
+    no_secs: bool = False
+    show_title: bool = False
+    align_head: bool = False
+    no_align_head: bool = False
+    align_simple: bool = False
+    random_color: bool = False
+    random_color_background: bool = False
+    random_color_message: bool = False
+    no_random_color: bool = False
+    disable: bool = False
+
+@dataclass
+class Highlighters:
+    phrases: Optional[List[str]] = None
+    prefixes: Optional[List[str]] = None
+
+@dataclass
+class RecordSettings:
+    record_dir: str
+    record_keys: Optional[List[str]] = None
+
+@dataclass
+class LayoutSettings:
+    linespace: int = 0
+    divider: bool = False
+    flat: bool = False
+    no_flat: bool = False
+    per_line: int = 4
+    header_spacer: str = "\n"
+
+@dataclass
+class NCArgs:
+    title: str = "all"
+    raw: bool = False
+    filters: Optional[Filters] = None
+    record: Optional[RecordSettings] = None
+    layout: Optional[LayoutSettings] = None
+    highlighters: Optional[Highlighters]  = None
+    line: Optional[LineCustomizers] = None
+    stacktrace: Optional[StacktraceSettings] = None
+
+
+
+def ncparser() -> ArgumentParser:
+    parser = ArgumentParser(description="nicelogcat")
+    parser.add_argument("--config", action=ActionConfigFile)
+    parser.add_dataclass_arguments(NCArgs, 'log', as_group=False, default=NCArgs())
     return parser
 
 
-def get_args(parser: argparse.ArgumentParser,
+def get_args(parser: ArgumentParser,
              dict_obj: dict = None,
              *args,
-             **kwargs) -> argparse.ArgumentParser:
+             **kwargs) -> ArgumentParser:
     if args or kwargs or dict_obj:
         if dict_obj:
             list_args = []

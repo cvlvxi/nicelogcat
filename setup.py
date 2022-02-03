@@ -11,6 +11,8 @@ setup(name='nicelogcat',
     license='',
     packages=['nicelogcat'],
     entry_points = {
-    'console_scripts': ['nicelogcat = nicelogcat:main']
+    'console_scripts': [
+        'nicelogcat = nicelogcat:main',
+        'dog = nicelogcat:dog']
     },
     zip_safe=False)

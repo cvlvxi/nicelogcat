@@ -378,16 +378,10 @@ def assemble_stack_str(
         stack_trace_str += "🟢 "
     if args.ALLOW_RECORD and not is_recording:
         stack_trace_str += "🔴 "
+    
     # Header Line
     back_color, fore_color = stack_trace_colors[prefix]
     # stack_trace_str += style(f"{prefix}Exception", fore_color)
-    stack_trace_str += style(f" {prefix}", back_color + Fore.BLACK)
-    stack_trace_str += style(" @ ", back_color + Fore.BLACK)
-    stack_trace_str += style(log_time, back_color + Fore.BLACK)
-    stack_trace_str += style(" " * 5, back_color + Fore.BLACK)
-    stack_trace_str += style(f"Current Time: {datetime.now().ctime()}", Back.GREEN + Fore.BLACK)
-    stack_trace_str += style(" " * 5, back_color + Fore.BLACK)
-    stack_trace_str += "\n"
     stack_trace_str += style(f" {prefix}", fore_color)
     # stack_trace_str += style(" @ ", back_color + Fore.BLACK)
     # stack_trace_str += style(" " * 5, back_color + Fore.BLACK)
