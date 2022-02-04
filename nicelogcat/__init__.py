@@ -17,9 +17,8 @@ def main():
 
 async def prepare():
     args: Args = get_arguments()
-    breakpoint()
     console = Console()
-    if args.ALLOW_RECORD:
+    if not args.record.off:
         with keyboard.Listener(on_press=on_press) as listener:
             try:
                 async for out in main_loop(args, stream=sys.stdin.buffer.raw):
