@@ -12,7 +12,7 @@ setup(name='nicelogcat',
     packages=['nicelogcat'],
     entry_points = {
     'console_scripts': [
-        'nicelogcat2 = nicelogcat:main',
-        'dog2 = nicelogcat:dog']
+            'nicelogcat = nicelogcat:main'
+        ]
     },
     zip_safe=False)

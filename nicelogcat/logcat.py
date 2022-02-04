@@ -541,9 +541,7 @@ def on_press(key):
                         next_inc = int(curr_files[-1]) + 1
                     RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
         elif key == KEY_SHOW_ARGS:
-            argdict = deepcopy(_args.__dict__)
-            if _console:
-                _console.print(Text.from_ansi(argdict))
+            pass
 
     except AttributeError:
         pass

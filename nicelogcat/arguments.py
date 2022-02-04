@@ -1,5 +1,5 @@
-from ast import Tuple
 import re
+from argparse import HelpFormatter
 from colorama import Fore, Back
 from colorama.ansi import AnsiCodes
 from collections import Counter
@@ -471,13 +471,25 @@ def arg_options(no_help: bool = False, **kwargs: dict) -> dict:
     return _args
 
 
+class NiceLogCatHelpFormatter(HelpFormatter):
+    def add_usage(self, usage, actions, groups, prefix=None):
+        if prefix is None:
+            prefix = 'Usage: '
+        actions = [x for x in actions if 'config' not in x.dest]
+        return super(NiceLogCatHelpFormatter, self).add_usage(
+            usage, actions, groups, prefix)
+
+
 @dataclass
 class NiceLogCatArgs:
 
     @staticmethod
     def cfg_parser(with_cfg: bool = False,
                    no_help: bool = False) -> ArgumentParser:
-        parser = ArgumentParser()
+        parser = ArgumentParser(
+            add_help=False,
+            formatter_class=NiceLogCatHelpFormatter)
+
         parser.add_dataclass_arguments(
             AlignArgs,
             **(arg_options(nested_key="align",
