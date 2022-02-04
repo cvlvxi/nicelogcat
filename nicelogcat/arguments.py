@@ -1,7 +1,6 @@
-from box import Box
 from colorama import Fore, Back
 from colorama.ansi import AnsiCodes
-from dataclasses import dataclass, field
+from dataclasses import Field, dataclass, field
 from enum import Enum
 from jsonargparse import (
     ArgumentParser,
@@ -9,9 +8,9 @@ from jsonargparse import (
     ActionConfigFile,
     SUPPRESS
 )
-from typing import List, TypeVar, Dict
+from typing import List, TypeVar
 
-from nicelogcat.utils import merge_dicts
+from nicelogcat.utils import r_merge_dicts
 
 ArgType = TypeVar("ArgType")
 
@@ -61,6 +60,8 @@ class StacktraceArgs:
 
 @dataclass
 class LineArgs:
+    title: str = "all"
+    raw: bool = False
     no_date: bool = False
     no_secs: bool = False
     show_title: bool = False
@@ -110,14 +111,11 @@ def arg_options(no_help: bool = False, **kwargs: dict) -> dict:
 
 @dataclass
 class NiceLogCatArgs:
-    title: str = "all"
-    raw: bool = False
 
     @staticmethod
     def cfg_parser(with_cfg: bool = False,
                    no_help: bool = False) -> ArgumentParser:
         parser = ArgumentParser()
-        parser.add_class_arguments(NiceLogCatArgs, as_group=False)
         parser.add_dataclass_arguments(
             FilterArgs,
             **(arg_options(nested_key="filter",
@@ -152,18 +150,18 @@ class NiceLogCatArgs:
         return parser
 
 
-ArgTypeMap: Dict[str, ArgType] = {
-    "color": ColorsArgs,
-    "filter": FilterArgs,
-    "highlight": HighlightArgs,
-    "layout": LayoutArgs,
-    "line": LineArgs,
-    "record": RecordArgs,
-    "stacktrace": StacktraceArgs
-}
+@dataclass
+class Args:
+    color: ColorsArgs
+    filter: FilterArgs
+    highlight: HighlightArgs
+    layout: LayoutArgs
+    line: LineArgs
+    record: RecordArgs
+    stacktrace: StacktraceArgs
 
 
-def get_arguments() -> Box:
+def get_arguments():
     cliparser: ArgumentParser = NiceLogCatArgs.cfg_parser()
     configparser: ArgumentParser = NiceLogCatArgs.cfg_parser(with_cfg=True,
                                                              no_help=True)
@@ -181,20 +179,22 @@ def get_arguments() -> Box:
     if "__path__" in config_args:
         config_args.pop("__path__")
 
-    main_args: ArgTypeMap = merge_dicts(config_args, cli_args)
-
+    main_args: dict = r_merge_dicts(config_args, cli_args)
+    args_field_dict = Args.__dataclass_fields__
     for arg_type, value in main_args.items():
-        if arg_type in ArgTypeMap:
-            main_args[arg_type] = ArgTypeMap[arg_type](value)
+        arg_field = args_field_dict[arg_type]
+        cls_type: Field = arg_field.type
+        main_args[arg_type] = cls_type(**value)
 
     missing_args = {
-        arg_type: ArgType
-        for arg_type, ArgType in ArgTypeMap.items()
+        arg_type: args_field
+        for arg_type, args_field in args_field_dict.items()
         if arg_type not in main_args
     }
 
-    for arg_type, ArgType in missing_args.items():
-        main_args[arg_type] = ArgType()
-
-    main_args = Box(main_args)
+    for arg_type, arg_field in missing_args.items():
+        arg_field: Field
+        cls_type = arg_field.type
+        main_args[arg_type] = cls_type()
+    main_args = Args(**main_args)
     return main_args

@@ -125,7 +125,7 @@ LOG_LEVEL_CHOICES = {
 }
 
 
-def merge_dicts(d1: dict, d2: dict, choose_right: bool = True) -> dict:
+def r_merge_dicts(d1: dict, d2: dict) -> dict:
     d3 = {}
     for key in d1.keys():
         assert key in d2.keys()
@@ -134,8 +134,8 @@ def merge_dicts(d1: dict, d2: dict, choose_right: bool = True) -> dict:
         value2 = d2[key1]
         assert type(value1) == type(value2)
         if isinstance(value1, dict):
-            d3[key1] = merge_dicts(value1, value2)
-        if isinstance(value1, list):
+            d3[key1] = r_merge_dicts(value1, value2)
+        elif isinstance(value1, list):
             d3[key1] = value1 + value2
         else:
             d3[key1] = value2

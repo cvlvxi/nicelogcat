@@ -114,22 +114,24 @@ async def main_loop(args: Box,
             date = utils.norm_str3(parts[0])
             timestamp = utils.norm_str3(parts[1])
             # Find loglevel index
-            levels = [level for level in utils.LOG_LEVEL_CHOICES.keys() if len(level) == 1]
-            log_level_idx = [idx for idx, val in enumerate(parts) if len(val.strip()) == 1 and val.strip().lower() in levels]
+            levels = [
+                level for level in utils.LOG_LEVEL_CHOICES.keys()
+                if len(level) == 1
+            ]
+            log_level_idx = [
+                idx for idx, val in enumerate(parts)
+                if len(val.strip()) == 1 and val.strip().lower() in levels
+            ]
             if not log_level_idx:
                 continue
             log_level_idx = log_level_idx[0]
-            (log_level_color, log_level,
-             max_log_width) = utils.get_log_level(utils.norm_str3(parts[log_level_idx]),
-                                                  args.colors)
+            (log_level_color, log_level, max_log_width) = utils.get_log_level(
+                utils.norm_str3(parts[log_level_idx]), args.colors)
             if len(log_level) < max_log_width:
                 log_level += " " * (max_log_width - len(log_level))
 
-            prefix = utils.norm_str3(parts[log_level_idx+1]).strip()
-            msg = utils.norm_str3(" ".join(parts[log_level_idx+2:]))
-            print(args.no_secs)
-            import sys
-            sys.exit(1)
+            prefix = utils.norm_str3(parts[log_level_idx + 1]).strip()
+            msg = utils.norm_str3(" ".join(parts[log_level_idx + 2:]))
             if args.no_secs:
                 timestamp = timestamp.rsplit(".", 1)[0]
             if args.no_date:
@@ -427,7 +429,8 @@ def nice_print(
                 is_recording=IS_RECORDING,
             )
             if stack_trace_str:
-                stack_trace_str_no_col = utils.remove_col_from_val(stack_trace_str)
+                stack_trace_str_no_col = utils.remove_col_from_val(
+                    stack_trace_str)
 
     will_print = True
     result_str = args.SPACER.join([x for x in string_list if x])
@@ -484,14 +487,18 @@ def nice_print(
             will_print = any(
                 [f.lower() in result_str_no_col.lower() for f in args.FILTERS])
             if stack_trace_str:
-                will_print = any(
-                    [f.lower() in stack_trace_str_no_col.lower() for f in args.FILTERS])
+                will_print = any([
+                    f.lower() in stack_trace_str_no_col.lower()
+                    for f in args.FILTERS
+                ])
         else:
             will_print = all(
                 [f.lower() in result_str_no_col.lower() for f in args.FILTERS])
             if stack_trace_str:
-                will_stack_trace = all(
-                    [f.lower() in stack_trace_str_no_col.lower() for f in args.FILTERS])
+                will_stack_trace = all([
+                    f.lower() in stack_trace_str_no_col.lower()
+                    for f in args.FILTERS
+                ])
                 if not will_stack_trace:
                     stack_trace_str = ""
     if args.FILTER_OUT:
@@ -501,7 +508,8 @@ def nice_print(
                 break
         if stack_trace_str:
             for phrase in args.FILTER_OUT:
-                will_not_stack_trace = phrase.lower() in stack_trace_str_no_col.lower()
+                will_not_stack_trace = phrase.lower(
+                ) in stack_trace_str_no_col.lower()
                 if will_not_stack_trace:
                     stack_trace_str = ""
                     break
@@ -598,7 +606,7 @@ def on_press(key):
                     next_inc = int(curr_files[-1]) + 1
                 RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
         elif key == SHOW_ARGS_KEY:
-            print("\n"*2)
+            print("\n" * 2)
             print("Command to run the following:")
             print()
             if not JSON_ARGS_OBJ:
@@ -610,13 +618,13 @@ def on_press(key):
                     if not isinstance(v, bool):
                         args_str += f" {v}"
                     json_args.append(args_str)
-                cool_log(
-                    f"adb logcat | nicelogcat {' '.join(json_args)}"
-                )
+                cool_log(f"adb logcat | nicelogcat {' '.join(json_args)}")
                 print("Or add this to your JSON configs")
                 print()
-                print(utils.style(json.dumps(JSON_ARGS_OBJ, indent=2), color=Fore.RED))
-                print('\n'*2)
+                print(
+                    utils.style(json.dumps(JSON_ARGS_OBJ, indent=2),
+                                color=Fore.RED))
+                print('\n' * 2)
 
         elif key == SHOW_COMMON_MSGS:
             common_str = utils.style("Common Phrases Found (count - msg)",

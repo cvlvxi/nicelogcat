@@ -2,6 +2,5 @@ colorama
 pynput
 pytest
 rich
-python-box
 jsonargparse[all]
 

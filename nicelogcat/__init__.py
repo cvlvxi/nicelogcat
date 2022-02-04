@@ -1,12 +1,11 @@
 import sys
 import traceback
 import asyncio
-from box import Box
 from pynput import keyboard
 from rich.console import Console
 from rich.text import Text
 
-from nicelogcat.arguments import get_arguments
+from nicelogcat.arguments import get_arguments, Args
 from nicelogcat.logcat import main_loop, on_press, Output
 
 __all__ = ['ncparser']
@@ -17,7 +16,9 @@ def main():
 
 
 async def prepare():
-    args: Box = get_arguments()
+    args: Args = get_arguments()
+    dog_args = args
+    breakpoint()
     console = Console()
     if args.ALLOW_RECORD:
         with keyboard.Listener(on_press=on_press) as listener:
