@@ -89,8 +89,7 @@ class Headers:
 # Main Loop
 ########################################################
 
-async def main_loop(args: Args,
-                    stream: BinaryIO) -> Output:
+async def main_loop(args: Args, stream: BinaryIO) -> Output:
     global _args
     global IS_RECORDING
     global TITLE
@@ -197,22 +196,35 @@ def nice_print(
     nested_spacer = " "
     top_spacer = " "
     readable_time = ""
-    try:
-        readable_time: datetime = datetime.strptime(h.log_time.value,
-                                                    "[%m-%d] %H:%M:%S.%f")
-    except Exception:
-        readable_time: datetime = datetime.strptime(h.log_time.value,
-                                                    "[%Y-%m-%d] %H:%M:%S.%f")
-    # Assume current year?
-    new_datetime = datetime(
-        year=datetime.now().year,
-        month=readable_time.month,
-        day=readable_time.day,
-        hour=readable_time.hour,
-        minute=readable_time.minute,
-        second=readable_time.second,
-    )
-    log_time = new_datetime.ctime()
+
+    readable_time = None
+
+    def get_date(t, strf, readable_time) -> datetime:
+        try:
+            readable_time = datetime.strptime(t, strf)
+        except:
+            pass
+        return readable_time
+
+    date_strfs = ["[%m-%d] %H:%M:%S.%f",
+                  "[%Y-%m-%d] %H:%M:%S.%f",
+                  "[%m-%d] %H:%M:%S",
+                  "%H:%M:%S"]
+
+    for strf in date_strfs:
+        readable_time = get_date(h.log_time.value, strf, readable_time)
+        if readable_time:
+            break
+    log_time = ""
+    if readable_time:
+        new_datetime = datetime(
+            year=datetime.now().year,
+            month=readable_time.day or 0,
+            day=readable_time.day or 0,
+            hour=readable_time.hour or 0,
+            minute=readable_time.minute or 0,
+            second=readable_time.second or 0)
+        log_time = new_datetime.ctime()
 
     key_color = args.color.key
     value_color = args.color.value
@@ -412,6 +424,7 @@ def nice_print(
                     color=args.color.highlight_off
                     if not args.filter.include else "")
                 result_str = first_section + middle_section + end_section
+
     if not args.filter.off:
         if args.filter.include:
             will_print = FilterArgs.check(result_str_no_col,
@@ -541,6 +554,12 @@ def on_press(key):
                         next_inc = int(curr_files[-1]) + 1
                     RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
         elif key == KEY_SHOW_ARGS:
+            # bleh = print_args.to_json_string()
+            # print_args.pop('color')
+            # print_args['stacktrace'].stacktrace_colors = None
+            # print(json.dumps(print_args))
+            # print(_args.to_json_string())
+            # print(str(print_args))
             pass
 
     except AttributeError:

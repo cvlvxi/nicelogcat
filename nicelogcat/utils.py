@@ -1,5 +1,6 @@
 import json
 import random
+from dataclasses import is_dataclass
 from functools import reduce
 from typing import List, TypeVar, Tuple
 from colorama import Fore, Style, Back

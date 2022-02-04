@@ -3,7 +3,7 @@ from argparse import HelpFormatter
 from colorama import Fore, Back
 from colorama.ansi import AnsiCodes
 from collections import Counter
-from dataclasses import Field, dataclass, field
+from dataclasses import Field, dataclass, field, asdict
 from enum import Enum
 from jsonargparse import (
     ArgumentParser,
@@ -22,11 +22,6 @@ from nicelogcat.utils import (
 )
 
 ArgType = TypeVar("ArgType")
-
-
-class FilterType(Enum):
-    all = "all"
-    any = "any"
 
 
 ##############################################################
@@ -152,7 +147,6 @@ class ColorArgs:
             raise ValueError("Unknown log_level found: {}".format(log_level))
         return result
 
-
 @dataclass
 class HighlightArgs:
     phrases: List[str] = field(default_factory=list)
@@ -163,22 +157,22 @@ class HighlightArgs:
 @dataclass
 class FilterArgs:
     include: List[str] = field(default_factory=list)
-    include_type: FilterType = FilterType.all
+    include_type: str = "any"
     exclude: List[str] = field(default_factory=list)
-    exclude_type: FilterType = FilterType.any
+    exclude_type: str = "any"
     prefixes: List[str] = field(default_factory=list)
-    prefixes_type: FilterType = FilterType.any
+    prefixes_type: str = "any"
     exclude_prefixes: List[str] = field(default_factory=list)
-    exclude_prefixes_type: FilterType = FilterType.any
+    exclude_prefixes_type: str = "any"
     log_levels: List[str] = field(default_factory=list)
-    log_levels_type: FilterType = FilterType.any
+    log_levels_type: str = "any"
     off: bool = False
 
     @staticmethod
     def check(
         val,
         check_list: List[str],
-        check_type: FilterType,
+        check_type: str,
         casei: bool = True,
         exact: bool = False,
         both_ways: bool = True,
@@ -192,7 +186,7 @@ class FilterArgs:
             val = val.lower()
             check_list = [val.lower() for val in check_list]
         check_flag = False
-        check_type = any if FilterType.any else all
+        check_type = any if check_type == "any" else all
         if not exact:
             check_flag = check_type(
                 [val in check_val for check_val in check_list])
@@ -540,6 +534,10 @@ class Args:
     metric: MetricArgs
     record: RecordArgs
     stacktrace: StacktraceArgs
+
+    def to_json_string(self) -> str:
+        args_dict = asdict(self)
+        return args_dict
 
 
 def get_arguments():
