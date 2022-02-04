@@ -2,8 +2,6 @@ import time
 import os
 import sys
 import json
-import nicelogcat.utils as utils
-from box import Box
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime
@@ -12,25 +10,19 @@ from pynput import keyboard
 from traceback import print_exc
 from typing import Tuple, Optional, BinaryIO, List
 
+from nicelogcat.arguments import Args
+import nicelogcat.utils as utils
+
 init(autoreset=True)
-INIT_NOT_RECORDING_STATE = True
-RECORD_KEY = keyboard.Key.f12
-RECORD_FILE_NAME = None
-RECORD_DIR = ""
-FORCE_DISABLE_PRINT = False
-IS_RECORDING = False
-TITLE = ""
-STACK_TRACE_MAP = {}
-STACK_TRACE_COLORS = {}
-HEADER_LEN_COUNTER = Counter()
-HEADER_FREQ_COUNTER = Counter()
-HEADER_OCCURENCE_CHECK_LIMIT = 5000
-MOST_FREQ_HEADER_LINE = ""
-MAX_LEN_HEADER_WITH_PADDING = ""
-COMMON_MSGS = defaultdict(dict)
-COMMON_MSGS_TO_RAWLINE = {}
-COMMON_MSG_TIMEFRAME_SECS = 120
-JSON_ARGS_OBJ = None
+
+########################################################
+# Globals
+########################################################
+_args: Args = None
+
+########################################################
+# Dataclasses
+########################################################
 
 
 @dataclass
@@ -66,7 +58,7 @@ class Headers:
     ) -> str:
         return (delimiter * len(self.log_time.value)) + delimiter + \
                (delimiter * len(self.log_level.value)) + delimiter + \
-               self.prefix.value
+            self.prefix.value
 
     def to_string(self, delimiter: str = " ", raw: bool = False) -> str:
         return delimiter.join([
@@ -83,26 +75,18 @@ class Headers:
         return ["log_time", "level", "prefix"]
 
 
-async def main_loop(args: Box,
-                    stream: BinaryIO,
-                    json_args_obj: dict = None) -> Output:
-    global TITLE
-    global RECORD_DIR
-    global COMMON_MSGS
-    global COMMON_MSGS_TO_RAWLINE
-    global JSON_ARGS_OBJ
-    if json_args_obj:
-        JSON_ARGS_OBJ = json_args_obj
-    RECORD_DIR = args.record_dir
-    TITLE = args.title.lower().replace(" ", "_") if args.title else ""
-    common_t0 = time.time()
+########################################################
+# Main Loop
+########################################################
+
+async def main_loop(args: Args,
+                    stream: BinaryIO) -> Output:
+    global _args
+    _args = args
+    _args.title = _args.title.lower().replace(" ", "_") if _args.title else ""
+
     try:
         while True:
-            common_t1 = time.time()
-            if (common_t1 - common_t0) >= COMMON_MSG_TIMEFRAME_SECS:
-                common_t0 = time.time()
-                COMMON_MSGS = defaultdict(dict)
-                COMMON_MSGS_TO_RAWLINE = {}
             line = next(stream)
             line = line.decode(errors="ignore")
             line = line.strip()
@@ -126,47 +110,50 @@ async def main_loop(args: Box,
                 continue
             log_level_idx = log_level_idx[0]
             (log_level_color, log_level, max_log_width) = utils.get_log_level(
-                utils.norm_str3(parts[log_level_idx]), args.colors)
+                utils.norm_str3(parts[log_level_idx]), _args.colors)
             if len(log_level) < max_log_width:
                 log_level += " " * (max_log_width - len(log_level))
 
             prefix = utils.norm_str3(parts[log_level_idx + 1]).strip()
             msg = utils.norm_str3(" ".join(parts[log_level_idx + 2:]))
-            if args.no_secs:
+            if _args.line.no_secs:
                 timestamp = timestamp.rsplit(".", 1)[0]
-            if args.no_date:
+            if _args.line.no_date:
                 log_time = f"{timestamp}"
             else:
                 log_time = f"[{date}] {timestamp}"
             headers = Headers(
                 prefix=ValueColor(value=prefix,
-                                  color=args.colors["PREFIX_COLOR"]),
+                                  color=_args.color.prefix),
                 log_level=ValueColor(value=log_level, color=log_level_color),
                 log_time=ValueColor(value=log_time,
-                                    color=args.colors["TIME_COLOR"]))
+                                    color=_args.color.time))
             output: Output = nice_print(
-                args,
+                _args,
                 headers,
                 utils.nested_dicts({"message": msg}),
                 rawline=line,
-                force_disable_print=FORCE_DISABLE_PRINT,
-                is_recording=IS_RECORDING,
+                force_disable_print=_args.line.off,
+                is_recording=not _args.record.off
             )
             if output == Output.default():
                 continue
-            if FORCE_DISABLE_PRINT or args.disable:
+            if _args.line.off:
                 output.output = ""
             # Record common_msgs
-            if output.output not in COMMON_MSGS[headers.prefix.value]:
-                COMMON_MSGS[headers.prefix.value] = Counter()
-                COMMON_MSGS_TO_RAWLINE[headers.prefix.value] = defaultdict(str)
-            COMMON_MSGS[headers.prefix.value][output.output] += 1
-            COMMON_MSGS_TO_RAWLINE[output.output] = line.strip()
-            if args.ALLOW_RECORD and IS_RECORDING:
-                record_file_path = os.path.join(args.RECORD_DIR,
-                                                RECORD_FILE_NAME)
+            if not _args.metrics.off:
+                common_msgs = _args.metric.common_msgs
+                common_msgs_to_raw = _args.metric.common_msgs_to_raw
+                if output.output not in common_msgs[headers.prefix.value]:
+                    common_msgs[headers.prefix.value] = Counter()
+                    common_msgs[headers.prefix.value] = defaultdict(str)
+                common_msgs[headers.prefix.value][output.output] += 1
+                common_msgs_to_raw[output.output] = line.strip()
+            if not _args.record.off and _args.record.is_recording:
+                record_file_path = os.path.join(_args.record.dir,
+                                                _args.record.filename)
                 write_to_file = True
-                if args.RECORD_KEYS_DIFF:
+                if _args.record.key_diff:
                     write_to_file = output.change_detected
                 with open(record_file_path, "a") as f:
                     if write_to_file:
@@ -187,7 +174,7 @@ async def main_loop(args: Box,
 
 
 def nice_print(
-    args: dict,
+    args: Args,
     headers: Headers,
     message_dict: dict,
     rawline: str,
@@ -545,7 +532,8 @@ def nice_print(
             header_line_str = "🔴" + " " + header_line_str
 
         # THE PRINT
-        header_output = divider_str + count_str + header_line_str + top_spacer + args.SPACER
+        header_output = divider_str + count_str + \
+            header_line_str + top_spacer + args.SPACER
         thing_to_print = result_str
         if args.flat and not args.no_flat:
             header_output = count_str + header_line_str + args.SPACER

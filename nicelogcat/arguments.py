@@ -1,7 +1,9 @@
 from colorama import Fore, Back
 from colorama.ansi import AnsiCodes
+from collections import Counter
 from dataclasses import Field, dataclass, field
 from enum import Enum
+from pynput import keyboard
 from jsonargparse import (
     ArgumentParser,
     ActionParser,
@@ -15,8 +17,26 @@ from nicelogcat.utils import r_merge_dicts
 ArgType = TypeVar("ArgType")
 
 
+class FilterType(Enum):
+    all = "all"
+    any = "any"
+
+
+##############################################################
+# Argument Dataclasses
+##############################################################
 @dataclass
-class ColorsArgs:
+class AlignArgs:
+    header_len_counter: Counter = Counter()
+    header_freq_counter: Counter = Counter()
+    header_occurence_check_limit = 5000
+    header_most_freq_line = ""
+    header_max_len_with_padding = -1
+    off: bool = True
+
+
+@dataclass
+class ColorArgs:
     header: AnsiCodes = Back.YELLOW + Fore.BLACK
     log_warn: AnsiCodes = Fore.YELLOW
     log_error: AnsiCodes = Fore.RED
@@ -36,9 +56,11 @@ class ColorsArgs:
     change_detected: AnsiCodes = Back.RED + Fore.BLACK
 
 
-class FilterType(Enum):
-    all = "all"
-    any = "any"
+@dataclass
+class HighlightArgs:
+    phrases: List[str] = field(default_factory=list)
+    prefixes: List[str] = field(default_factory=list)
+    off: bool = False
 
 
 @dataclass
@@ -50,12 +72,17 @@ class FilterArgs:
     prefixes: List[str] = field(default_factory=list)
     exclude_prefixes: List[str] = field(default_factory=list)
     log_levels: List[str] = field(default_factory=list)
+    off: bool = False
 
 
 @dataclass
-class StacktraceArgs:
-    num_stack_traces: int = 10
-    prev_lines_before_stacktrace: int = 4
+class LayoutArgs:
+    linespace: int = 0
+    divider: bool = False
+    flat: bool = False
+    no_flat: bool = False
+    per_line: int = 4
+    header_spacer: str = "\n"
 
 
 @dataclass
@@ -72,33 +99,43 @@ class LineArgs:
     random_color_background: bool = False
     random_color_message: bool = False
     no_random_color: bool = False
-    disable: bool = False
     left_of_key: str = "["
     right_of_key: str = "]"
+    off: bool = False
 
 
 @dataclass
-class HighlightArgs:
-    phrases: List[str] = field(default_factory=list)
-    prefixes: List[str] = field(default_factory=list)
+class MetricArgs:
+    common_msgs: dict = field(default_factory=dict)
+    common_msgs_to_raw: dict = field(default_factory=dict)
+    common_msgs_timeframe_secs: int = 120
+    off: bool = True
 
 
 @dataclass
 class RecordArgs:
     dir: str = ""
     keys: List[str] = field(default_factory=list)
+    key_diff: dict = field(default_factory=dict)
+    off: bool = True
+    key: str = keyboard.Key.f12
+    init_recording_state: bool = True
+    filename: str = ""
+    is_recording: bool = False
 
 
 @dataclass
-class LayoutArgs:
-    linespace: int = 0
-    divider: bool = False
-    flat: bool = False
-    no_flat: bool = False
-    per_line: int = 4
-    header_spacer: str = "\n"
+class StacktraceArgs:
+    num_stack_traces: int = 10
+    prev_lines_before_stacktrace: int = 4
+    off: bool = True
+    stacktrace_map: dict = field(default_factory=dict)
+    stacktrace_colors: dict = field(default_factory=dict)
 
 
+##############################################################
+# Main argument export
+##############################################################
 def arg_options(no_help: bool = False, **kwargs: dict) -> dict:
     _args = {}
     if "no_help" in kwargs:
@@ -117,19 +154,14 @@ class NiceLogCatArgs:
                    no_help: bool = False) -> ArgumentParser:
         parser = ArgumentParser()
         parser.add_dataclass_arguments(
+            AlignArgs,
+            **(arg_options(nested_key="align",
+                           default=AlignArgs(),
+                           no_help=no_help)))
+        parser.add_dataclass_arguments(
             FilterArgs,
             **(arg_options(nested_key="filter",
                            default=FilterArgs(),
-                           no_help=no_help)))
-        parser.add_dataclass_arguments(
-            RecordArgs,
-            **(arg_options(nested_key="record",
-                           default=RecordArgs(),
-                           no_help=no_help)))
-        parser.add_dataclass_arguments(
-            LayoutArgs,
-            **(arg_options(nested_key="layout",
-                           default=LayoutArgs(),
                            no_help=no_help)))
         parser.add_dataclass_arguments(
             HighlightArgs,
@@ -137,8 +169,18 @@ class NiceLogCatArgs:
                            default=HighlightArgs(),
                            no_help=no_help)))
         parser.add_dataclass_arguments(
+            LayoutArgs,
+            **(arg_options(nested_key="layout",
+                           default=LayoutArgs(),
+                           no_help=no_help)))
+        parser.add_dataclass_arguments(
             LineArgs,
             **(arg_options(nested_key="line", default=LineArgs(),
+                           no_help=no_help)))
+        parser.add_dataclass_arguments(
+            RecordArgs,
+            **(arg_options(nested_key="record",
+                           default=RecordArgs(),
                            no_help=no_help)))
         parser.add_dataclass_arguments(
             StacktraceArgs,
@@ -152,11 +194,13 @@ class NiceLogCatArgs:
 
 @dataclass
 class Args:
-    color: ColorsArgs
+    align: AlignArgs
+    color: ColorArgs
     filter: FilterArgs
     highlight: HighlightArgs
     layout: LayoutArgs
     line: LineArgs
+    metric: MetricArgs
     record: RecordArgs
     stacktrace: StacktraceArgs
 

@@ -17,7 +17,6 @@ def main():
 
 async def prepare():
     args: Args = get_arguments()
-    dog_args = args
     breakpoint()
     console = Console()
     if args.ALLOW_RECORD:
@@ -25,7 +24,7 @@ async def prepare():
             try:
                 async for out in main_loop(args, stream=sys.stdin.buffer.raw):
                     out: Output
-                    if args.FIND_STACKTRACES:
+                    if not args.stacktrace.off:
                         console.print(Text.from_ansi(out.stacktrace))
                     else:
                         console.print(
