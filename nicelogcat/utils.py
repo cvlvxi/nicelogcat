@@ -124,6 +124,24 @@ LOG_LEVEL_CHOICES = {
     "SILENT": "SILENT",
 }
 
+
+def merge_dicts(d1: dict, d2: dict, choose_right: bool = True) -> dict:
+    d3 = {}
+    for key in d1.keys():
+        assert key in d2.keys()
+    for key1, value1 in d1.items():
+        assert key1 in d2
+        value2 = d2[key1]
+        assert type(value1) == type(value2)
+        if isinstance(value1, dict):
+            d3[key1] = merge_dicts(value1, value2)
+        if isinstance(value1, list):
+            d3[key1] = value1 + value2
+        else:
+            d3[key1] = value2
+    return d3
+
+
 LOG_VALS = set(LOG_LEVEL_CHOICES.values())
 # MAX_LOG_WIDTH = max([len(x) for x in LOG_VALS])
 MAX_LOG_WIDTH = 5
@@ -262,11 +280,9 @@ def flatten_dict(d):
     return new_dict
 
 
-def rand_prefix_colors(
-    stack_trace_colors: dict,
-    prefix: str,
-    ignore_col: any = None
-):
+def rand_prefix_colors(stack_trace_colors: dict,
+                       prefix: str,
+                       ignore_col: any = None):
     ignore_index = None
     if ignore_col:
         try:
@@ -290,10 +306,7 @@ def rand_prefix_colors(
     fore_col = FORE_COLORS[rand_idx]
 
     if prefix not in stack_trace_colors:
-        stack_trace_colors[prefix] = (
-            back_col,
-            fore_col
-        )
+        stack_trace_colors[prefix] = (back_col, fore_col)
 
 
 def find_stack(
@@ -378,7 +391,7 @@ def assemble_stack_str(
         stack_trace_str += "🟢 "
     if args.ALLOW_RECORD and not is_recording:
         stack_trace_str += "🔴 "
-    
+
     # Header Line
     back_color, fore_color = stack_trace_colors[prefix]
     # stack_trace_str += style(f"{prefix}Exception", fore_color)
@@ -433,6 +446,7 @@ def assemble_stack_str(
 
     return stack_trace_str
 
+
 def explode_single_item_list(some_list):
     item = []
     if len(some_list) == 1:
@@ -449,6 +463,7 @@ def explode_single_item_list(some_list):
     if isinstance(item, str):
         item = [item]
     return item
+
 
 def clear_stack(
     stack_trace_map: dict,

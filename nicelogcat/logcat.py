@@ -3,10 +3,11 @@ import os
 import sys
 import json
 import nicelogcat.utils as utils
+from box import Box
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from colorama import init, Fore, Back
+from colorama import init, Fore
 from pynput import keyboard
 from traceback import print_exc
 from typing import Tuple, Optional, BinaryIO, List
@@ -82,7 +83,7 @@ class Headers:
         return ["log_time", "level", "prefix"]
 
 
-async def main_loop(args: dict,
+async def main_loop(args: Box,
                     stream: BinaryIO,
                     json_args_obj: dict = None) -> Output:
     global TITLE
