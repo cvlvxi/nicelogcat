@@ -122,9 +122,6 @@ class ColorArgs:
     path: AnsiCodes = Fore.LIGHTMAGENTA_EX
     timing: AnsiCodes = Back.RED + Fore.BLACK
     change_detected: AnsiCodes = Back.RED + Fore.BLACK
-    random_background: bool = False
-    random_message: bool = False
-    random_off: bool = False
 
     @staticmethod
     def get_log_level(log_level, color: "ColorArgs"):
@@ -184,7 +181,7 @@ class FilterArgs:
         check_type: FilterType,
         casei: bool = True,
         exact: bool = False,
-        both_ways: bool = False,
+        both_ways: bool = True,
         exclude_empty: bool = True
     ) -> bool:
         if not check_list:
@@ -218,7 +215,7 @@ class LayoutArgs:
     flat: bool = False
     no_flat: bool = False
     per_line: int = 4
-    header_spacer: str = "\n"
+    header_spacer: str = ""
     spacer: str = " "
 
 
@@ -235,6 +232,9 @@ class LineArgs:
     left_of_key: str = ""
     right_of_key: str = ""
     off: bool = False
+    random_col_background: bool = False
+    random_col_message: bool = False
+    random_col_off: bool = False
 
 
 @dataclass

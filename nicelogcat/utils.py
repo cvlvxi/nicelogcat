@@ -225,7 +225,7 @@ def flatten_dict(d):
 
 def rand_prefix_colors(stack_trace_colors: dict,
                        prefix: str,
-                       ignore_col: any = None):
+                       ignore_col: any = None) -> dict:
     ignore_index = None
     if ignore_col:
         try:
@@ -235,9 +235,7 @@ def rand_prefix_colors(stack_trace_colors: dict,
                 ignore_index = FORE_COLORS.index(ignore_col)
             except Exception:
                 pass
-
     rand_idx = None
-
     if ignore_index:
         while True:
             rand_idx = random.randint(2, 11)
@@ -250,6 +248,7 @@ def rand_prefix_colors(stack_trace_colors: dict,
 
     if prefix not in stack_trace_colors:
         stack_trace_colors[prefix] = (back_col, fore_col)
+    return stack_trace_colors
 
 
 def explode_single_item_list(some_list):

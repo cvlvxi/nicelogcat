@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from colorama import init, Fore
@@ -6,6 +7,7 @@ from colorama.ansi import AnsiCodes
 from pynput import keyboard
 from traceback import print_exc
 from typing import Tuple, Optional, BinaryIO
+
 
 from nicelogcat.arguments import (
     AlignArgs,
@@ -97,7 +99,8 @@ async def main_loop(args: Args,
     _args = args
     TITLE = _args.line.title.lower().replace(" ", "_") \
         if _args.line.title else ""
-    RECORD_DIR = _args.record.dir if os.path.exists(_args.record.dir) else os.curdir
+    RECORD_DIR = _args.record.dir if os.path.exists(
+        _args.record.dir) else os.curdir
 
     try:
         while True:
@@ -213,22 +216,19 @@ def nice_print(
 
     key_color = args.color.key
     value_color = args.color.value
-    header_line_str = headers.to_string()
-    header_line_raw_str = headers.to_string(raw=True)
-    raw_len = len(header_line_raw_str)
-    raw_key = headers.prefix_only_string(delimiter="x")
 
-    if not args.color.random_off:
-        utils.rand_prefix_colors(args.stacktrace.stacktrace_colors,
-                                 h.prefix.value,
-                                 ignore_col=key_color)
-        prefix_col = args.stacktrace.stacktrace_colors[h.prefix.value]
-        if args.color.random_background:
+    if not args.line.random_col_off:
+        stacktrace_colors = args.stacktrace.stacktrace_colors
+        stacktrace_colors = utils.rand_prefix_colors(stacktrace_colors,
+                                                     h.prefix.value,
+                                                     ignore_col=key_color)
+        prefix_col = stacktrace_colors[h.prefix.value]
+        if args.line.random_col_background:
             chosen_col = prefix_col[0] + Fore.BLACK
         else:
             chosen_col = prefix_col[1]
         headers.prefix.color = chosen_col
-        if args.color.random_message:
+        if args.line.random_col_message:
             value_color = chosen_col
 
     if not args.filter.off:
@@ -256,6 +256,11 @@ def nice_print(
         if has_ignored_prefix:
             return Output.default()
 
+    header_line_str = headers.to_string()
+    header_line_raw_str = headers.to_string(raw=True)
+    raw_len = len(header_line_raw_str)
+
+    raw_key = headers.prefix_only_string(delimiter="x")
     if not args.align.off:
         header_line_str = AlignArgs.align_header(args.align,
                                                  raw_key,
@@ -407,7 +412,6 @@ def nice_print(
                     color=args.color.highlight_off
                     if not args.filter.include else "")
                 result_str = first_section + middle_section + end_section
-
     if not args.filter.off:
         if args.filter.include:
             will_print = FilterArgs.check(result_str_no_col,
@@ -508,10 +512,13 @@ def on_press(key):
     global RECORD_FILE_NAME
     global TITLE
     global RECORD_DIR
-    RECORD_KEY = keyboard.Key.f12
+    global _args
+    global _console
+    KEY_RECORD = keyboard.Key.f12
+    KEY_SHOW_ARGS = keyboard.Key.f11
     set_filename = False
     try:
-        if key == RECORD_KEY:
+        if key == KEY_RECORD:
             IS_RECORDING = not IS_RECORDING
             INIT_NOT_RECORDING_STATE = False
             if not INIT_NOT_RECORDING_STATE and IS_RECORDING:
@@ -533,6 +540,10 @@ def on_press(key):
                     if curr_files:
                         next_inc = int(curr_files[-1]) + 1
                     RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
+        elif key == KEY_SHOW_ARGS:
+            argdict = deepcopy(_args.__dict__)
+            if _console:
+                _console.print(Text.from_ansi(argdict))
 
     except AttributeError:
         pass
