@@ -232,8 +232,8 @@ class LineArgs:
     align_head: bool = False
     no_align_head: bool = False
     align_simple: bool = False
-    left_of_key: str = "["
-    right_of_key: str = "]"
+    left_of_key: str = ""
+    right_of_key: str = ""
     off: bool = False
 
 

@@ -1,5 +1,4 @@
 import os
-from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from colorama import init, Fore
@@ -8,7 +7,14 @@ from pynput import keyboard
 from traceback import print_exc
 from typing import Tuple, Optional, BinaryIO
 
-from nicelogcat.arguments import AlignArgs, Args, ColorArgs, FilterArgs, StacktraceArgs
+from nicelogcat.arguments import (
+    AlignArgs,
+    Args,
+    ColorArgs,
+    FilterArgs,
+    StacktraceArgs
+)
+
 import nicelogcat.utils as utils
 
 init(autoreset=True)
@@ -20,7 +26,7 @@ _args: Args = None
 IS_RECORDING: bool = False
 INIT_NOT_RECORDING_STATE: bool = False
 TITLE = "all"
-RECORD_DIR = "."
+RECORD_DIR = os.curdir
 
 ########################################################
 # Dataclasses
@@ -89,8 +95,9 @@ async def main_loop(args: Args,
     global RECORD_DIR
     global RECORD_FILE_NAME
     _args = args
-    TITLE = _args.line.title.lower().replace(" ", "_") if _args.line.title else ""
-    RECORD_DIR = _args.record.dir
+    TITLE = _args.line.title.lower().replace(" ", "_") \
+        if _args.line.title else ""
+    RECORD_DIR = _args.record.dir if os.path.exists(_args.record.dir) else os.curdir
 
     try:
         while True:
@@ -104,6 +111,7 @@ async def main_loop(args: Args,
                 continue
             date = utils.norm_str3(parts[0])
             timestamp = utils.norm_str3(parts[1])
+
             # Find loglevel index
             levels = [
                 level for level in utils.LOG_LEVEL_CHOICES.keys()
@@ -116,7 +124,8 @@ async def main_loop(args: Args,
             if not log_level_idx:
                 continue
             log_level_idx = log_level_idx[0]
-            (log_level_color, log_level, max_log_width) = ColorArgs.get_log_level(
+            (log_level_color, log_level, max_log_width) = \
+                ColorArgs.get_log_level(
                 utils.norm_str3(parts[log_level_idx]), _args.color)
             if len(log_level) < max_log_width:
                 log_level += " " * (max_log_width - len(log_level))
@@ -135,6 +144,7 @@ async def main_loop(args: Args,
                 log_level=ValueColor(value=log_level, color=log_level_color),
                 log_time=ValueColor(value=log_time,
                                     color=_args.color.time))
+
             output: Output = nice_print(
                 _args,
                 headers,
@@ -220,6 +230,7 @@ def nice_print(
         headers.prefix.color = chosen_col
         if args.color.random_message:
             value_color = chosen_col
+
     if not args.filter.off:
         has_log: bool = FilterArgs.check(h.log_level.value,
                                          args.filter.log_levels,
@@ -282,7 +293,7 @@ def nice_print(
         k = utils.style(k, color=key_color)
 
         if isinstance(v, dict):
-            (new_key_count, nice_str) = utils.nice_print_dict(
+            (new_key_count, nice_str) = nice_print_dict(
                 key_count,
                 top_spacer,
                 v,
@@ -453,6 +464,7 @@ def nice_print_dict(
     nice_str = ""
     nice_strings = []
 
+    spacer = args.layout.spacer
     for k, v in some_dict.items():
         if isinstance(v, dict):
             (new_key_count,
@@ -469,7 +481,6 @@ def nice_print_dict(
                     args.filter.exclude_prefixes_type)
                 if ignore_k:
                     continue
-            spacer = args.layout.spacer
             nice_strings.append(spacer + "{}{}: {}{}".format(
                 args.line.left_of_key,
                 utils.style(str(k).strip(), color=key_color),
@@ -510,15 +521,18 @@ def on_press(key):
             if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
                 set_filename = True
             if set_filename:
-                curr_files = [
-                    int(x.rsplit(".log")[0].rsplit("_")[-1])
-                    for x in os.listdir(RECORD_DIR) if TITLE in x
-                ]
-                curr_files = sorted(curr_files)
-                next_inc = 0
-                if curr_files:
-                    next_inc = int(curr_files[-1]) + 1
-                RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
+                if TITLE not in os.listdir(RECORD_DIR):
+                    RECORD_FILE_NAME = TITLE + "_0.log"
+                else:
+                    curr_files = [
+                        int(x.rsplit(".log")[0].rsplit("_")[-1])
+                        for x in os.listdir(RECORD_DIR) if TITLE in x
+                    ]
+                    curr_files = sorted(curr_files)
+                    next_inc = 0
+                    if curr_files:
+                        next_inc = int(curr_files[-1]) + 1
+                    RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
 
     except AttributeError:
         pass
