@@ -1,8 +1,10 @@
+from datetime import datetime
 import re
-from colorama import Fore, Back
+from colorama import Fore, Back, Style
 from colorama.ansi import AnsiCodes
 from collections import Counter
 from dataclasses import Field, dataclass, field, asdict
+from dataclasses_json import dataclass_json
 from jsonargparse import (
     ArgumentParser,
     ActionParser,
@@ -382,12 +384,14 @@ class StacktraceArgs:
             stack_trace_str += "🔴 "
 
         # Header Line
+        curr_time = datetime.now().ctime()
         back_color, fore_color = stack_trace_colors[prefix]
-        # stack_trace_str += style(f"{prefix}Exception", fore_color)
-        stack_trace_str += style(f" {prefix}", fore_color)
-        # stack_trace_str += style(" " * 5, back_color + Fore.BLACK)
-        # Stack Prefixes
+        stack_header_color = back_color + Fore.BLACK
+        header_delim = "|"
+        stack_trace_str += style(
+            f" {prefix.capitalize()} {header_delim} Log Time: {log_time} {header_delim} Current Time: {curr_time}\n", stack_header_color)
 
+        # Stack Prefixes
         stack_trace_str += style("\n".join(
             [x for x in stack_trace_prefixes if x]),
             color=Fore.YELLOW)
@@ -474,7 +478,6 @@ class NiceLogCatHelpFormatter(DefaultHelpFormatter):
         return super(NiceLogCatHelpFormatter, self).add_argument(action)
 
 
-
 @dataclass
 class NiceLogCatArgs:
 
@@ -502,6 +505,7 @@ class NiceLogCatArgs:
         return parser
 
 
+@dataclass_json
 @dataclass
 class Args:
     align: AlignArgs

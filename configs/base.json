@@ -1,5 +1,4 @@
 {
-    "--random": true,
-    "--flat": true,
-    "--align-head": true
+    "line": {
+    }
 }

@@ -30,6 +30,76 @@ INIT_NOT_RECORDING_STATE: bool = False
 TITLE = "all"
 RECORD_DIR = os.curdir
 
+KEY_RECORD = keyboard.Key.f12
+KEY_SHOW_ARGS = keyboard.Key.f11
+
+
+def show_available_keys():
+    print(utils.style("Available keys:", Fore.GREEN))
+    print(utils.style(f"\tShow Configuration Key: f11", Fore.YELLOW))
+    print(utils.style(f"\tRecord Key: f12", Fore.YELLOW))
+
+
+show_available_keys()
+
+
+def on_press(key):
+    global IS_RECORDING
+    global INIT_NOT_RECORDING_STATE
+    global RECORD_FILE_NAME
+    global TITLE
+    global RECORD_DIR
+    global _args
+    global _console
+    set_filename = False
+    try:
+        if key == KEY_RECORD:
+            IS_RECORDING = not IS_RECORDING
+            INIT_NOT_RECORDING_STATE = False
+            if not INIT_NOT_RECORDING_STATE and IS_RECORDING:
+                if not TITLE:
+                    TITLE = "logcat"
+                set_filename = True
+            if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
+                set_filename = True
+            if set_filename:
+                if TITLE not in os.listdir(RECORD_DIR):
+                    RECORD_FILE_NAME = TITLE + "_0.log"
+                else:
+                    curr_files = [
+                        int(x.rsplit(".log")[0].rsplit("_")[-1])
+                        for x in os.listdir(RECORD_DIR) if TITLE in x
+                    ]
+                    curr_files = sorted(curr_files)
+                    next_inc = 0
+                    if curr_files:
+                        next_inc = int(curr_files[-1]) + 1
+                    RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
+        elif key == KEY_SHOW_ARGS:
+            try:
+                args_copy = deepcopy(_args)
+                args_copy.color = None
+                args_copy.stacktrace.stacktrace_colors = {}
+                print()
+                print()
+                print(utils.style("Settings as config.json:", color=Fore.YELLOW))
+                print()
+                print(utils.style(args_copy.to_json(indent=4), color=Fore.GREEN))
+            except Exception as e:
+                print(str(e))
+
+            # bleh = print_args.to_json_string()
+            # print_args.pop('color')
+            # print_args['stacktrace'].stacktrace_colors = None
+            # print(json.dumps(print_args))
+            # print(_args.to_json_string())
+            # print(str(print_args))
+            pass
+
+    except AttributeError:
+        pass
+
+
 ########################################################
 # Dataclasses
 ########################################################
@@ -508,59 +578,3 @@ def nice_print_dict(
     if nice_strings:
         nice_str = spacer.join([x for x in nice_strings if x])
     return (key_count, nice_str)
-
-
-def cool_log(thing_to_print, use_color=True):
-    print('\n' * 1)
-    if use_color:
-        print(utils.style(thing_to_print, color=Fore.YELLOW))
-    else:
-        print(thing_to_print)
-    print('\n' * 1)
-
-
-def on_press(key):
-    global IS_RECORDING
-    global INIT_NOT_RECORDING_STATE
-    global RECORD_FILE_NAME
-    global TITLE
-    global RECORD_DIR
-    global _args
-    global _console
-    KEY_RECORD = keyboard.Key.f12
-    KEY_SHOW_ARGS = keyboard.Key.f11
-    set_filename = False
-    try:
-        if key == KEY_RECORD:
-            IS_RECORDING = not IS_RECORDING
-            INIT_NOT_RECORDING_STATE = False
-            if not INIT_NOT_RECORDING_STATE and IS_RECORDING:
-                if not TITLE:
-                    TITLE = "logcat"
-                set_filename = True
-            if not INIT_NOT_RECORDING_STATE and not IS_RECORDING:
-                set_filename = True
-            if set_filename:
-                if TITLE not in os.listdir(RECORD_DIR):
-                    RECORD_FILE_NAME = TITLE + "_0.log"
-                else:
-                    curr_files = [
-                        int(x.rsplit(".log")[0].rsplit("_")[-1])
-                        for x in os.listdir(RECORD_DIR) if TITLE in x
-                    ]
-                    curr_files = sorted(curr_files)
-                    next_inc = 0
-                    if curr_files:
-                        next_inc = int(curr_files[-1]) + 1
-                    RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
-        elif key == KEY_SHOW_ARGS:
-            # bleh = print_args.to_json_string()
-            # print_args.pop('color')
-            # print_args['stacktrace'].stacktrace_colors = None
-            # print(json.dumps(print_args))
-            # print(_args.to_json_string())
-            # print(str(print_args))
-            pass
-
-    except AttributeError:
-        pass

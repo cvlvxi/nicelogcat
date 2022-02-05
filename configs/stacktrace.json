@@ -1,5 +1,8 @@
 {
-    "--stacktrace": true,
-    "--disable": true,
-    "--linespace": "3"
+    "stacktrace": {
+        "off": false
+    },
+    "line": {
+        "off": true
+    }
 }

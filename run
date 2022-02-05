@@ -28,7 +28,6 @@ how_to_config += guide_color + "To specify a config use nicelogcat [config_dir] 
 how_to_config += "\n\n"
 how_to_config += "If config_dir is not specified (without --) it will search configs in: " + base_config_dir
 
-
 if is_config_dir:
     sys.argv.pop(1)
     try:
@@ -41,11 +40,18 @@ if is_config_dir:
 
     config_file_idx = config_file_load_key_idx + 1
 
-    config_file = sys.argv[config_file_idx]
-    if not os.path.exists(config_file):
-        config_file = os.path.join(config_dir, config_file)
+    config_file_basename = sys.argv[config_file_idx]
+    if not os.path.exists(config_file_basename):
+        config_file = os.path.join(config_dir, config_file_basename)
         if not os.path.exists(config_file):
-            config_file = os.path.join(base_config_dir, config_file)
+            config_file = os.path.join(base_config_dir, config_file_basename)
+        if not os.path.exists(config_file):
+            config_file = config_file + ".json"
+
+    print(Fore.GREEN + f"Config_file:" + Style.RESET_ALL)
+    print(Fore.YELLOW + f"\t{config_file}" + Style.RESET_ALL)
+    sys.argv[config_file_idx] = config_file
+
     try:
         main()
     except Exception as e:
@@ -64,3 +70,5 @@ else:
         print(error_color + "Could not find config_dir: " +
               Style.RESET_ALL + info_color + config_dir + Style.RESET_ALL)
         print(how_to_config)
+    else:
+        main()
