@@ -8,8 +8,6 @@ from rich.text import Text
 from nicelogcat.arguments import get_arguments, Args
 from nicelogcat.logcat import main_loop, on_press, Output
 
-__all__ = ['ncparser']
-
 
 def main():
     asyncio.run(prepare())

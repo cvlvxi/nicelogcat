@@ -1,15 +1,14 @@
 import re
-from argparse import HelpFormatter
 from colorama import Fore, Back
 from colorama.ansi import AnsiCodes
 from collections import Counter
 from dataclasses import Field, dataclass, field, asdict
-from enum import Enum
 from jsonargparse import (
     ArgumentParser,
     ActionParser,
     ActionConfigFile,
-    SUPPRESS
+    SUPPRESS,
+    DefaultHelpFormatter
 )
 from typing import List, TypeVar, Dict, Tuple
 
@@ -146,6 +145,7 @@ class ColorArgs:
         else:
             raise ValueError("Unknown log_level found: {}".format(log_level))
         return result
+
 
 @dataclass
 class HighlightArgs:
@@ -455,71 +455,50 @@ class StacktraceArgs:
 ##############################################################
 # Main argument export
 ##############################################################
-def arg_options(no_help: bool = False, **kwargs: dict) -> dict:
-    _args = {}
-    if "no_help" in kwargs:
-        no_help = kwargs.pop()
-    _args |= kwargs
-    if no_help:
-        _args["help"] = SUPPRESS
-    return _args
+class NiceLogCatHelpFormatter(DefaultHelpFormatter):
+    @staticmethod
+    def is_ignorable_config_action(action) -> bool:
+        return ('config' in action.dest) and (not 'config.file' == action.dest)
 
-
-class NiceLogCatHelpFormatter(HelpFormatter):
     def add_usage(self, usage, actions, groups, prefix=None):
         if prefix is None:
             prefix = 'Usage: '
-        actions = [x for x in actions if 'config' not in x.dest]
+        actions = [
+            x for x in actions if not self.is_ignorable_config_action(x)]
         return super(NiceLogCatHelpFormatter, self).add_usage(
             usage, actions, groups, prefix)
+
+    def add_argument(self, action):
+        if self.is_ignorable_config_action(action):
+            return ""
+        return super(NiceLogCatHelpFormatter, self).add_argument(action)
+
 
 
 @dataclass
 class NiceLogCatArgs:
 
     @staticmethod
-    def cfg_parser(with_cfg: bool = False,
-                   no_help: bool = False) -> ArgumentParser:
+    def cfg_parser(with_cfg: bool = False) -> ArgumentParser:
         parser = ArgumentParser(
-            add_help=False,
-            formatter_class=NiceLogCatHelpFormatter)
+            add_help=True, formatter_class=NiceLogCatHelpFormatter)
 
         parser.add_dataclass_arguments(
-            AlignArgs,
-            **(arg_options(nested_key="align",
-                           default=AlignArgs(),
-                           no_help=no_help)))
+            AlignArgs, nested_key="align", default=AlignArgs())
         parser.add_dataclass_arguments(
-            FilterArgs,
-            **(arg_options(nested_key="filter",
-                           default=FilterArgs(),
-                           no_help=no_help)))
+            FilterArgs, nested_key="filter", default=FilterArgs())
         parser.add_dataclass_arguments(
-            HighlightArgs,
-            **(arg_options(nested_key="highlight",
-                           default=HighlightArgs(),
-                           no_help=no_help)))
+            HighlightArgs, nested_key="highlight", default=HighlightArgs())
         parser.add_dataclass_arguments(
-            LayoutArgs,
-            **(arg_options(nested_key="layout",
-                           default=LayoutArgs(),
-                           no_help=no_help)))
+            LayoutArgs, nested_key="layout", default=LayoutArgs())
         parser.add_dataclass_arguments(
-            LineArgs,
-            **(arg_options(nested_key="line", default=LineArgs(),
-                           no_help=no_help)))
+            LineArgs, nested_key="line", default=LineArgs())
         parser.add_dataclass_arguments(
-            RecordArgs,
-            **(arg_options(nested_key="record",
-                           default=RecordArgs(),
-                           no_help=no_help)))
+            RecordArgs, nested_key="record", default=RecordArgs())
         parser.add_dataclass_arguments(
-            StacktraceArgs,
-            **(arg_options(nested_key="stacktrace",
-                           default=StacktraceArgs(),
-                           no_help=no_help)))
+            StacktraceArgs, nested_key="stacktrace", default=StacktraceArgs())
         if with_cfg:
-            parser.add_argument('--load', action=ActionConfigFile)
+            parser.add_argument('--file', action=ActionConfigFile)
         return parser
 
 
@@ -542,8 +521,7 @@ class Args:
 
 def get_arguments():
     cliparser: ArgumentParser = NiceLogCatArgs.cfg_parser()
-    configparser: ArgumentParser = NiceLogCatArgs.cfg_parser(with_cfg=True,
-                                                             no_help=True)
+    configparser: ArgumentParser = NiceLogCatArgs.cfg_parser(with_cfg=True)
     action_configparser = ActionParser(configparser)
     cliparser.add_argument("--config",
                            action=action_configparser,
@@ -553,8 +531,8 @@ def get_arguments():
     cli_args: dict = joined_parser.as_dict()
     config_args: dict = cli_args.pop("config")
 
-    if "load" in config_args:
-        config_args.pop("load")
+    if "file" in config_args:
+        config_args.pop("file")
     if "__path__" in config_args:
         config_args.pop("__path__")
 
