@@ -212,6 +212,18 @@ class HighlightArgs:
     prefixes: List[str] = field(default_factory=list)
     off: bool = False
 
+    @staticmethod
+    def add_argparse_arguments(parser: ArgumentParser) -> List[Union[BoolArg, NonBoolArg]]:
+        flags = [
+            NonBoolArg("--h", "highlight.phrases", is_list=True,
+                       help="Highlight these phrases"),
+            NonBoolArg('--hp', 'highlight.prefixes', is_list=True,
+                       help="Highlight these prefixes")
+        ]
+        for flag in flags:
+            flag.add(parser)
+        return flags
+
 
 @dataclass
 class FilterArgs:
@@ -291,6 +303,16 @@ class LayoutArgs:
     header_spacer: str = ""
     spacer: str = " "
 
+    @staticmethod
+    def add_argparse_arguments(parser: ArgumentParser) -> List[Union[BoolArg, NonBoolArg]]:
+        flags = [
+            NonBoolArg("-s", "layout.linespace",
+                       default=0, help="Spaces between log lines"),
+        ]
+        for flag in flags:
+            flag.add(parser)
+        return flags
+
 
 @dataclass
 class LineArgs:
@@ -329,6 +351,17 @@ class RecordArgs:
     init_recording_state: bool = True
     filename: str = ""
     is_recording: bool = False
+
+    @staticmethod
+    def add_argparse_arguments(parser: ArgumentParser) -> List[Union[BoolArg, NonBoolArg]]:
+        flags = [
+            NonBoolArg("--rd", "record.dir", help="Directory to store recordings", default=""),
+            NonBoolArg('--rk', "record.keys", help="Keys to record", is_list=True),
+            NonBoolArg("--rf", "record.filename", help="Filename to store recording under", default=""),
+        ]
+        for flag in flags:
+            flag.add(parser)
+        return flags
 
 
 @dataclass
@@ -569,20 +602,6 @@ class NiceLogCatHelpFormatter(DefaultHelpFormatter):
         return super(NiceLogCatHelpFormatter, self).add_argument(action)
 
 
-# def usage_and_dont_exit_error_handler(parser: 'ArgumentParser', message: str) -> None:
-#     """Error handler that prints the usage and exits with error code 2 (same behavior as argparse).
-
-#     Args:
-#         parser: The parser object.
-#         message: The message describing the error being handled.
-#     """
-#     # parser.print_usage(sys.stderr)
-#     # args = {'prog': parser.prog, 'message': message}
-#     # sys.stderr.write('%(prog)s: error: %(message)s\n' % args)
-#     # parser.exit(2)
-#     pass
-
-
 @dataclass_json
 @dataclass
 class Args:
@@ -629,7 +648,7 @@ class NiceLogCatArgs:
     @staticmethod
     def custom_parser() -> _ArgumentParser:
         parser = _ArgumentParser(
-            add_help=True, formatter_class=NiceLogCatHelpFormatter, exit_on_error=False)
+            add_help=True, exit_on_error=False)
         return parser
 
     @staticmethod
@@ -656,6 +675,9 @@ class NiceLogCatArgs:
         # Add flags to pop
         flags += FilterArgs.add_argparse_arguments(custom_parser)
         flags += StacktraceArgs.add_argparse_arguments(custom_parser)
+        flags += HighlightArgs.add_argparse_arguments(custom_parser)
+        flags += LayoutArgs.add_argparse_arguments(custom_parser)
+        flags += RecordArgs.add_argparse_arguments(custom_parser)
         custom_args, _ = custom_parser.parse_known_args()
         custom_args_dict = uplift_flat_dict(custom_args.__dict__)
         NiceLogCatArgs.pop_from_sys_argv(flags)
