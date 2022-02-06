@@ -5,7 +5,7 @@ from pynput import keyboard
 from rich.console import Console
 from rich.text import Text
 
-from nicelogcat.arguments import get_arguments, Args
+from nicelogcat.arguments import NiceLogCatArgs, Args
 from nicelogcat.logcat import main_loop, on_press, Output
 
 
@@ -14,7 +14,7 @@ def main():
 
 
 async def prepare():
-    args: Args = get_arguments()
+    args: Args = NiceLogCatArgs.get_arguments()
     console = Console()
     if not args.record.off:
         with keyboard.Listener(on_press=on_press) as listener:

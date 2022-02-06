@@ -44,6 +44,8 @@ if is_config_dir:
     if not os.path.exists(config_file_basename):
         config_file = os.path.join(config_dir, config_file_basename)
         if not os.path.exists(config_file):
+            config_file = config_file + ".json"
+        if not os.path.exists(config_file):
             config_file = os.path.join(base_config_dir, config_file_basename)
         if not os.path.exists(config_file):
             config_file = config_file + ".json"

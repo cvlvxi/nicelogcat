@@ -127,21 +127,49 @@ LOG_LEVEL_CHOICES = {
 
 def find_index_in_most_common(most_common: List[Tuple[str, int]],
                               line: str) -> int:
+    print(most_common)
+    print(line)
     key_list = [x[0] for x in most_common]
     idx = key_list.index(line)
     return idx
 
 
-def r_merge_dicts(d1: dict, d2: dict) -> dict:
+def uplift_flat_dict(d: dict) -> dict:
+    d2 = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            d2[k] = uplift_flat_dict(v)
+        if '.' in k:
+            k_parts = k.split('.', 1)
+            uplift_k = k_parts[0]
+            other_k = k_parts[1]
+            if uplift_k not in d2:
+                d2[uplift_k] = {}
+            d2[uplift_k][other_k] = v
+        else:
+            d2[k] = v
+    return d2
+
+
+def r_merge_dicts(d1: dict, d2: dict, smaller_r: bool = False) -> dict:
     d3 = {}
     for key in d1.keys():
-        assert key in d2.keys()
+        if not smaller_r:
+            assert key in d2.keys()
     for key1, value1 in d1.items():
-        assert key1 in d2
+        if not smaller_r:
+            assert key1 in d2
+        else:
+            if key1 not in d2:
+                continue
         value2 = d2[key1]
+        if value1 == None  and value2 != None:
+            value1 = value2
+        elif value2 == None and value1 != None:
+            value2 = value1
         assert type(value1) == type(value2)
         if isinstance(value1, dict):
-            d3[key1] = r_merge_dicts(value1, value2)
+            d3[key1] = r_merge_dicts(value1, value2, smaller_r=smaller_r)
         elif isinstance(value1, list):
             d3[key1] = value1 + value2
         else:

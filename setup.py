@@ -12,7 +12,8 @@ setup(name='nicelogcat',
     packages=['nicelogcat'],
     entry_points = {
     'console_scripts': [
-            'nicelogcat = nicelogcat:main'
+            'nicelogcat = nicelogcat:main',
+            'nicelogcatdebug = nicelogcat:main'
         ]
     },
     zip_safe=False)

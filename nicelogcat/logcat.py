@@ -2,7 +2,7 @@ import os
 from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
-from colorama import init, Fore
+from colorama import init, Fore, Back
 from colorama.ansi import AnsiCodes
 from pynput import keyboard
 from traceback import print_exc
@@ -80,20 +80,14 @@ def on_press(key):
                 args_copy = deepcopy(_args)
                 args_copy.color = None
                 args_copy.stacktrace.stacktrace_colors = {}
+                args_copy.stacktrace.stacktrace_map = {}
                 print()
                 print()
-                print(utils.style("Settings as config.json:", color=Fore.YELLOW))
+                print(utils.style("Settings as config.json:", color=Back.YELLOW + Fore.BLACK))
                 print()
                 print(utils.style(args_copy.to_json(indent=4), color=Fore.GREEN))
             except Exception as e:
                 print(str(e))
-
-            # bleh = print_args.to_json_string()
-            # print_args.pop('color')
-            # print_args['stacktrace'].stacktrace_colors = None
-            # print(json.dumps(print_args))
-            # print(_args.to_json_string())
-            # print(str(print_args))
             pass
 
     except AttributeError:

@@ -1,5 +1,8 @@
-from datetime import datetime
+
 import re
+import sys
+from argparse import ArgumentParser as _ArgumentParser
+from datetime import datetime
 from colorama import Fore, Back, Style
 from colorama.ansi import AnsiCodes
 from collections import Counter
@@ -12,14 +15,15 @@ from jsonargparse import (
     SUPPRESS,
     DefaultHelpFormatter
 )
-from typing import List, TypeVar, Dict, Tuple
+from typing import List, TypeVar, Dict, Tuple, Union
 
 from nicelogcat.utils import (
     r_merge_dicts,
     find_index_in_most_common,
     rand_prefix_colors,
     remove_col_from_val,
-    style
+    style,
+    uplift_flat_dict
 )
 
 ArgType = TypeVar("ArgType")
@@ -28,6 +32,53 @@ ArgType = TypeVar("ArgType")
 ##############################################################
 # Argument Dataclasses
 ##############################################################
+@dataclass
+class BoolArg:
+    flag: str
+    dest: str
+    help: str = ""
+    invert: bool = False
+
+    def add(self, parser: _ArgumentParser):
+        args = [self.flag]
+        # Assume default off
+        kwargs = {'dest': self.dest}
+        if not self.invert:
+            kwargs['action'] = 'store_true'
+        else:
+            kwargs['action'] = 'store_false'
+
+        if self.help:
+            kwargs['help'] = self.help
+        parser.add_argument(*args, **kwargs)
+
+
+@dataclass
+class NonBoolArg:
+    flag: str
+    dest: str
+    is_list: bool = False
+    choices: List[str] = None
+    default: str = None
+    help: str = ""
+    required: bool = False
+
+    def add(self, parser: _ArgumentParser):
+        args = [self.flag]
+        kwargs = {'dest': self.dest}
+        if self.is_list:
+            kwargs['action'] = 'append'
+        if self.default:
+            kwargs['default'] = self.default
+        if self.choices:
+            kwargs['choices'] = self.choices
+        if self.help:
+            kwargs['help'] = self.help
+        if self.required:
+            kwargs['required'] = self.required
+        parser.add_argument(*args, **kwargs)
+
+
 @dataclass
 class AlignArgs:
     header_len_counter: Counter = field(default_factory=Counter)
@@ -48,6 +99,10 @@ class AlignArgs:
         check_limit: int = align.header_occurence_check_limit
         header_len_counter: Counter = align.header_len_counter
         header_freq_counter = align.header_freq_counter
+        if not header_len_counter:
+            header_len_counter = Counter()
+        if not header_freq_counter:
+            header_freq_counter = Counter()
 
         if align.simple:
             if raw_key not in header_len_counter:
@@ -63,6 +118,8 @@ class AlignArgs:
             if raw_key not in header_len_counter:
                 header_freq_counter[raw_key] = 1
             else:
+                if raw_key not in header_freq_counter:
+                    header_freq_counter[raw_key] = 1
                 header_occurences = header_freq_counter[raw_key]
                 if header_occurences != check_limit:
                     header_freq_counter[raw_key] += 1
@@ -171,6 +228,26 @@ class FilterArgs:
     off: bool = False
 
     @staticmethod
+    def add_argparse_arguments(parser: ArgumentParser) -> List[Union[BoolArg, NonBoolArg]]:
+        flags = [
+            NonBoolArg("-f", "filter.include", is_list=True),
+            NonBoolArg('--ftype', 'filter.include_type',
+                       choices=["all", "any"], default="any"),
+            NonBoolArg("-x", "filter.exclude", is_list=True),
+            NonBoolArg('--xtype', 'filter.exclude_type',
+                       choices=["all", "any"], default="any"),
+            NonBoolArg("-p", "filter.prefixes", is_list=True),
+            NonBoolArg('--ptype', 'filter.prefixes_type',
+                       choices=["all", "any"], default="any"),
+            NonBoolArg("--pi", "filter.exclude_prefixes", is_list=True),
+            NonBoolArg('--pitype', 'filter.exclude_prefixes_type',
+                       choices=["all", "any"], default="any"),
+        ]
+        for flag in flags:
+            flag.add(parser)
+        return flags
+
+    @staticmethod
     def check(
         val,
         check_list: List[str],
@@ -261,6 +338,20 @@ class StacktraceArgs:
     off: bool = True
     stacktrace_map: dict = field(default_factory=dict)
     stacktrace_colors: dict = field(default_factory=dict)
+
+    @staticmethod
+    def add_argparse_arguments(parser: _ArgumentParser):
+        flags = [
+            NonBoolArg("--num-stacktrace", "stacktrace.num_stack_traces",
+                       default=10, help="Num Stacktraces"),
+            NonBoolArg("--num-lines-before-stacktrace", "stacktrace.prev_lines_before_stacktrace",
+                       default=4, help="Num Lines Before stacktrae"),
+            BoolArg('--stacktrace', dest='stacktrace.off',
+                    invert=True, help="Enable Stacktrace")
+        ]
+        for flag in flags:
+            flag.add(parser)
+        return flags
 
     @staticmethod
     def find(
@@ -478,7 +569,38 @@ class NiceLogCatHelpFormatter(DefaultHelpFormatter):
         return super(NiceLogCatHelpFormatter, self).add_argument(action)
 
 
+# def usage_and_dont_exit_error_handler(parser: 'ArgumentParser', message: str) -> None:
+#     """Error handler that prints the usage and exits with error code 2 (same behavior as argparse).
+
+#     Args:
+#         parser: The parser object.
+#         message: The message describing the error being handled.
+#     """
+#     # parser.print_usage(sys.stderr)
+#     # args = {'prog': parser.prog, 'message': message}
+#     # sys.stderr.write('%(prog)s: error: %(message)s\n' % args)
+#     # parser.exit(2)
+#     pass
+
+
+@dataclass_json
 @dataclass
+class Args:
+    align: AlignArgs
+    color: ColorArgs
+    filter: FilterArgs
+    highlight: HighlightArgs
+    layout: LayoutArgs
+    line: LineArgs
+    metric: MetricArgs
+    record: RecordArgs
+    stacktrace: StacktraceArgs
+
+    def to_json_string(self) -> str:
+        args_dict = asdict(self)
+        return args_dict
+
+
 class NiceLogCatArgs:
 
     @staticmethod
@@ -504,58 +626,73 @@ class NiceLogCatArgs:
             parser.add_argument('--file', action=ActionConfigFile)
         return parser
 
+    @staticmethod
+    def custom_parser() -> _ArgumentParser:
+        parser = _ArgumentParser(
+            add_help=True, formatter_class=NiceLogCatHelpFormatter, exit_on_error=False)
+        return parser
 
-@dataclass_json
-@dataclass
-class Args:
-    align: AlignArgs
-    color: ColorArgs
-    filter: FilterArgs
-    highlight: HighlightArgs
-    layout: LayoutArgs
-    line: LineArgs
-    metric: MetricArgs
-    record: RecordArgs
-    stacktrace: StacktraceArgs
+    @staticmethod
+    def pop_from_sys_argv(flags: List[Union[BoolArg, NonBoolArg]]):
+        for flag in flags:
+            print(flags)
+            print(flag)
+            while flag.flag in sys.argv:
+                try:
+                    flag_idx = sys.argv.index(flag.flag)
+                    if isinstance(flag, NonBoolArg):
+                        flag_val_idx = flag_idx + 1
+                        sys.argv.pop(flag_val_idx)
+                    sys.argv.pop(flag_idx)
+                except:
+                    pass
 
-    def to_json_string(self) -> str:
-        args_dict = asdict(self)
-        return args_dict
+    @staticmethod
+    def get_arguments() -> Args:
+        flags = []
 
+        # Custom Parser for shorthand
+        custom_parser = NiceLogCatArgs.custom_parser()
+        # Add flags to pop
+        flags += FilterArgs.add_argparse_arguments(custom_parser)
+        flags += StacktraceArgs.add_argparse_arguments(custom_parser)
+        custom_args, _ = custom_parser.parse_known_args()
+        custom_args_dict = uplift_flat_dict(custom_args.__dict__)
+        NiceLogCatArgs.pop_from_sys_argv(flags)
 
-def get_arguments():
-    cliparser: ArgumentParser = NiceLogCatArgs.cfg_parser()
-    configparser: ArgumentParser = NiceLogCatArgs.cfg_parser(with_cfg=True)
-    action_configparser = ActionParser(configparser)
-    cliparser.add_argument("--config",
-                           action=action_configparser,
-                           help=SUPPRESS)
-    joined_parser = cliparser.parse_args()
+        # Cfg Parser + Json Parser for cli
+        cliparser: ArgumentParser = NiceLogCatArgs.cfg_parser()
+        configparser: ArgumentParser = NiceLogCatArgs.cfg_parser(with_cfg=True)
+        action_configparser = ActionParser(configparser)
+        cliparser.add_argument("--config",
+                               action=action_configparser,
+                               help=SUPPRESS)
+        joined_parser = cliparser.parse_args()
+        cli_args: dict = joined_parser.as_dict()
+        config_args: dict = cli_args.pop("config")
+        if "file" in config_args:
+            config_args.pop("file")
+        if "__path__" in config_args:
+            config_args.pop("__path__")
 
-    cli_args: dict = joined_parser.as_dict()
-    config_args: dict = cli_args.pop("config")
+        main_args: dict = r_merge_dicts(config_args, cli_args)
+        main_args: dict = r_merge_dicts(
+            main_args, custom_args_dict, smaller_r=True)
 
-    if "file" in config_args:
-        config_args.pop("file")
-    if "__path__" in config_args:
-        config_args.pop("__path__")
+        args_field_dict = Args.__dataclass_fields__
+        for arg_type, value in main_args.items():
+            arg_field = args_field_dict[arg_type]
+            cls_type: Field = arg_field.type
+            main_args[arg_type] = cls_type(**value)
 
-    main_args: dict = r_merge_dicts(config_args, cli_args)
-    args_field_dict = Args.__dataclass_fields__
-    for arg_type, value in main_args.items():
-        arg_field = args_field_dict[arg_type]
-        cls_type: Field = arg_field.type
-        main_args[arg_type] = cls_type(**value)
-
-    missing_args = {
-        arg_type: args_field
-        for arg_type, args_field in args_field_dict.items()
-        if arg_type not in main_args
-    }
-
-    for arg_type, arg_field in missing_args.items():
-        arg_field: Field
-        cls_type = arg_field.type
-        main_args[arg_type] = cls_type()
-    main_args = Args(**main_args)
-    return main_args
+        missing_args = {
+            arg_type: args_field
+            for arg_type, args_field in args_field_dict.items()
+            if arg_type not in main_args
+        }
+        for arg_type, arg_field in missing_args.items():
+            arg_field: Field
+            cls_type = arg_field.type
+            main_args[arg_type] = cls_type()
+        main_args = Args(**main_args)
+        return main_args
