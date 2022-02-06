@@ -1,4 +1,5 @@
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from colorama import init, Fore, Back
@@ -228,8 +229,6 @@ async def main_loop(args: Args, stream: BinaryIO) -> Output:
     except StopIteration:
         pass
     except KeyboardInterrupt:
-        import sys
-
         sys.exit(1)
     except Exception:
         print_exc()
@@ -456,7 +455,7 @@ def nice_print(
             prev_recorded_string_dict[key] = string_dict[key]
         if args.record.key_diff and not change_detected:
             will_print = False
-            return ("", False)
+            return Output.default()
 
     if not args.highlight.off:
         for phrase in set(args.highlight.phrases):
@@ -481,18 +480,29 @@ def nice_print(
             will_print = FilterArgs.check(result_str_no_col,
                                           args.filter.include,
                                           args.filter.include_type)
+            if not will_print:
+                return Output.default()
+
             if stack_trace_str:
                 will_print = FilterArgs.check(stack_trace_str_no_col,
                                               args.filter.include,
                                               args.filter.include_type)
+                if not will_print:
+                    return Output.default()
+
         if args.filter.exclude:
             will_print = not FilterArgs.check(result_str_no_col,
                                               args.filter.exclude,
                                               args.filter.exclude_type)
+            if not will_print:
+                return Output.default()
+
             if stack_trace_str:
                 will_print = not FilterArgs.check(stack_trace_str_no_col,
                                                   args.filter.exclude,
                                                   args.filter.exclude_type)
+                if not will_print:
+                    return Output.default()
 
     divider_str = args.layout.divider + "\n" if args.layout.divider else ""
 

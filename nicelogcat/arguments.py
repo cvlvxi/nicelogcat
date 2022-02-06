@@ -168,7 +168,7 @@ class ColorArgs:
     prefix: AnsiCodes = Fore.GREEN
     title: AnsiCodes = Fore.MAGENTA
     highlight: AnsiCodes = Back.RED + Fore.BLACK,
-    highlight_off: AnsiCodes = Fore.BLACK + Back.YELLOW
+    highlight_off: AnsiCodes = Back.YELLOW + Fore.BLACK,
     highlight_off_filter: AnsiCodes = Fore.GREEN + Back.BLACK,
     value: AnsiCodes = Fore.WHITE
     key: AnsiCodes = Fore.CYAN
@@ -291,6 +291,9 @@ class FilterArgs:
                 check_flag = check_type(
                     [check_val in val for check_val in check_list])
             check_flag = other_check_flag or check_flag
+        if 'standalone' in check_list and check_flag:
+            print(check_list)
+            print(val)
         return check_flag
 
 
@@ -751,5 +754,5 @@ class NiceLogCatArgs:
             arg_field: Field
             cls_type = arg_field.type
             main_args[arg_type] = cls_type()
-        main_args = Args(**main_args)
+        main_args: Args = Args(**main_args)
         return main_args

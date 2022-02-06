@@ -198,6 +198,8 @@ def remove_col_from_val(val):
 def style(val: str, color=None):
     if not val or not isinstance(val, str):
         return val
+    if isinstance(color, tuple):
+        color = color[0]
     new_val = remove_col_from_val(val)
     if color:
         val = color + new_val + Style.RESET_ALL

@@ -42,6 +42,7 @@ def check_alive():
     devices = adb.device_list()
     if len(devices) == 0:
         print(style('Healthcheck: ❌ - Device down', color=Fore.RED))
+        sys.exit(1)
     else:
         print(style(f'Healthcheck: ✅ - Device up {devices}', color=Fore.GREEN))
 
