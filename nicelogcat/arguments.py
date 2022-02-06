@@ -44,14 +44,11 @@ class BoolArg:
         args = [self.flag]
         # Assume default off
         kwargs = {'dest': self.dest}
-        if not self.invert:
-            kwargs['action'] = 'store_true'
-        else:
-            kwargs['action'] = 'store_false'
-
         if self.help:
             kwargs['help'] = self.help
-        parser.add_argument(*args, **kwargs)
+        if not self.invert:
+            kwargs['action'] = 'store_true'
+            parser.add_argument(*args, **kwargs)
 
 
 @dataclass
@@ -71,6 +68,8 @@ class NonBoolArg:
             kwargs['action'] = 'append'
         if self.default:
             kwargs['default'] = self.default
+        else:
+            kwargs['default'] = None
         if self.choices:
             kwargs['choices'] = self.choices
         if self.help:
@@ -383,9 +382,9 @@ class StacktraceArgs:
     def add_argparse_arguments(parser: _ArgumentParser):
         flags = [
             NonBoolArg("--num-stacktrace", "stacktrace.num_stack_traces",
-                       default=10, help="Num Stacktraces"),
+                       default=None, help="Num Stacktraces"),
             NonBoolArg("--num-lines-before-stacktrace", "stacktrace.prev_lines_before_stacktrace",
-                       default=4, help="Num Lines Before stacktrae"),
+                       default=None, help="Num Lines Before stacktrae"),
             BoolArg('--stacktrace', dest='stacktrace.off',
                     invert=True, help="Enable Stacktrace")
         ]
