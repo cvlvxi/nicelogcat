@@ -1,16 +1,19 @@
-import sys
-import traceback
+
 import asyncio
+import sys
+import schedule
+import traceback
+import time
+from adbutils import adb
+from colorama import Fore
 from pynput import keyboard
 from rich.console import Console
 from rich.text import Text
+from threading import Thread
 
 from nicelogcat.arguments import NiceLogCatArgs, Args
 from nicelogcat.logcat import main_loop, on_press, Output
-
-
-def main():
-    asyncio.run(prepare())
+from nicelogcat.utils import style
 
 
 async def prepare():
@@ -29,6 +32,29 @@ async def prepare():
                 listener.join()
             except Exception:
                 console.print(traceback.print_exc())
+
+
+def logcat():
+    asyncio.run(prepare())
+
+
+def check_alive():
+    devices = adb.device_list()
+    if len(devices) == 0:
+        print(style('Healthcheck: ❌ - Device down', color=Fore.RED))
+    else:
+        print(style(f'Healthcheck: ✅ - Device up {devices}', color=Fore.GREEN))
+
+
+def main():
+    check_alive()
+    job_thread = Thread(target=logcat)
+    job_thread.daemon = True
+    job_thread.start()
+    schedule.every(60).seconds.do(check_alive)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
 
 
 if __name__ == "__main__":

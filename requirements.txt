@@ -3,4 +3,6 @@ pynput
 pytest
 rich
 jsonargparse[all]
+schedule
+adbutils
 
