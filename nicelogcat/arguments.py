@@ -356,9 +356,12 @@ class RecordArgs:
     @staticmethod
     def add_argparse_arguments(parser: ArgumentParser) -> List[Union[BoolArg, NonBoolArg]]:
         flags = [
-            NonBoolArg("--rd", "record.dir", help="Directory to store recordings", default=""),
-            NonBoolArg('--rk', "record.keys", help="Keys to record", is_list=True),
-            NonBoolArg("--rf", "record.filename", help="Filename to store recording under", default=""),
+            NonBoolArg("--rd", "record.dir",
+                       help="Directory to store recordings", default=""),
+            NonBoolArg('--rk', "record.keys",
+                       help="Keys to record", is_list=True),
+            NonBoolArg("--rf", "record.filename",
+                       help="Filename to store recording under", default=""),
         ]
         for flag in flags:
             flag.add(parser)
@@ -584,6 +587,9 @@ class StacktraceArgs:
 ##############################################################
 # Main argument export
 ##############################################################
+USED_FLAGS = []
+
+
 class NiceLogCatHelpFormatter(DefaultHelpFormatter):
     @staticmethod
     def is_ignorable_config_action(action) -> bool:
@@ -617,6 +623,7 @@ class Args:
     stacktrace: StacktraceArgs
 
     def debug_print(self, exit: bool = False):
+        global USED_FLAGS
         args_copy = deepcopy(self)
         try:
             args_copy.color = None
@@ -624,9 +631,18 @@ class Args:
             args_copy.stacktrace.stacktrace_map = {}
             print()
             print()
-            print(style("Settings as config.json:", color=Back.YELLOW + Fore.BLACK))
+            print(style("Settings as config.json:",
+                  color=Back.YELLOW + Fore.BLACK))
             print()
             print(style(args_copy.to_json(indent=4), color=Fore.GREEN))
+            print()
+            print()
+            if USED_FLAGS:
+                print(style("Shorthand settings:", color=Back.YELLOW + Fore.BLACK))
+                print()
+                print(
+                    style(f"\t{' '.join([flag for flag in USED_FLAGS])}", color=Fore.GREEN))
+                print()
         except Exception as e:
             print(str(e))
         pass
@@ -667,14 +683,21 @@ class NiceLogCatArgs:
 
     @staticmethod
     def pop_from_sys_argv(flags: List[Union[BoolArg, NonBoolArg]]):
+        global USED_FLAGS
+        popped_val = None
+        popped_key = None
         for flag in flags:
             while flag.flag in sys.argv:
                 try:
                     flag_idx = sys.argv.index(flag.flag)
                     if isinstance(flag, NonBoolArg):
                         flag_val_idx = flag_idx + 1
-                        sys.argv.pop(flag_val_idx)
-                    sys.argv.pop(flag_idx)
+                        popped_val = sys.argv.pop(flag_val_idx)
+                    popped_key = sys.argv.pop(flag_idx)
+                    if popped_key:
+                        USED_FLAGS.append(popped_key)
+                    if popped_val:
+                        USED_FLAGS.append(popped_val)
                 except:
                     pass
 

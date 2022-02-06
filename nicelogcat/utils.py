@@ -172,7 +172,11 @@ def r_merge_dicts(d1: dict, d2: dict, smaller_r: bool = False) -> dict:
         if isinstance(value1, dict):
             d3[key1] = r_merge_dicts(value1, value2, smaller_r=smaller_r)
         elif isinstance(value1, list):
-            d3[key1] = value1 + value2
+            new_list = value1
+            for v in value2:
+                if v not in new_list:
+                    new_list.append(v)
+            d3[key1] = new_list
         else:
             d3[key1] = value2
     return d3
