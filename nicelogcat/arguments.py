@@ -561,6 +561,7 @@ class StacktraceArgs:
         # stack_trace_str += "\n\t".join(stack_trace_lines[:num_stack_traces])
         # stack_trace_str += "\n"
         stack_trace_str += continued_str
+        # stack_trace_str = stack_trace_str.strip()
         return stack_trace_str
 
     def clear_stack(

@@ -25,7 +25,9 @@ async def prepare():
                 async for out in main_loop(args, stream=sys.stdin.buffer.raw):
                     out: Output
                     if not args.stacktrace.off:
-                        console.print(Text.from_ansi(out.stacktrace))
+                        stack_trace = out.stacktrace.strip()
+                        if stack_trace:
+                            console.print(Text.from_ansi(out.stacktrace))
                     else:
                         console.print(
                             Text.from_ansi(out.header_output + out.output))
