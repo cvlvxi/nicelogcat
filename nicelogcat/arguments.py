@@ -6,6 +6,7 @@ from datetime import datetime
 from colorama import Fore, Back, Style
 from colorama.ansi import AnsiCodes
 from collections import Counter
+from copy import deepcopy
 from dataclasses import Field, dataclass, field, asdict
 from dataclasses_json import dataclass_json
 from jsonargparse import (
@@ -615,9 +616,22 @@ class Args:
     record: RecordArgs
     stacktrace: StacktraceArgs
 
-    def to_json_string(self) -> str:
-        args_dict = asdict(self)
-        return args_dict
+    def debug_print(self, exit: bool = False):
+        args_copy = deepcopy(self)
+        try:
+            args_copy.color = None
+            args_copy.stacktrace.stacktrace_colors = {}
+            args_copy.stacktrace.stacktrace_map = {}
+            print()
+            print()
+            print(style("Settings as config.json:", color=Back.YELLOW + Fore.BLACK))
+            print()
+            print(style(args_copy.to_json(indent=4), color=Fore.GREEN))
+        except Exception as e:
+            print(str(e))
+        pass
+        if exit:
+            sys.exit(1)
 
 
 class NiceLogCatArgs:
@@ -654,8 +668,6 @@ class NiceLogCatArgs:
     @staticmethod
     def pop_from_sys_argv(flags: List[Union[BoolArg, NonBoolArg]]):
         for flag in flags:
-            print(flags)
-            print(flag)
             while flag.flag in sys.argv:
                 try:
                     flag_idx = sys.argv.index(flag.flag)

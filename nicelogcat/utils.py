@@ -161,6 +161,7 @@ def r_merge_dicts(d1: dict, d2: dict, smaller_r: bool = False) -> dict:
             assert key1 in d2
         else:
             if key1 not in d2:
+                d3[key1] = value1
                 continue
         value2 = d2[key1]
         if value1 == None  and value2 != None:

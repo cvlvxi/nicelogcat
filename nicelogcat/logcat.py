@@ -1,5 +1,4 @@
 import os
-from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from colorama import init, Fore, Back
@@ -76,19 +75,7 @@ def on_press(key):
                         next_inc = int(curr_files[-1]) + 1
                     RECORD_FILE_NAME = TITLE + "_{}.log".format(next_inc)
         elif key == KEY_SHOW_ARGS:
-            try:
-                args_copy = deepcopy(_args)
-                args_copy.color = None
-                args_copy.stacktrace.stacktrace_colors = {}
-                args_copy.stacktrace.stacktrace_map = {}
-                print()
-                print()
-                print(utils.style("Settings as config.json:", color=Back.YELLOW + Fore.BLACK))
-                print()
-                print(utils.style(args_copy.to_json(indent=4), color=Fore.GREEN))
-            except Exception as e:
-                print(str(e))
-            pass
+            _args.debug_print()
 
     except AttributeError:
         pass
