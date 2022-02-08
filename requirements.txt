@@ -5,4 +5,5 @@ rich
 jsonargparse[all]
 schedule
 adbutils
+dataclasses-json
 
