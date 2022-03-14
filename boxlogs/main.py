@@ -223,6 +223,86 @@ def print_loop(log_file, log_size_threshold):
             if delta > retry_print_loop_after_secs:
                 return
 
+<<<<<<< HEAD
+=======
+def line_loop(line):
+    line = line.strip()
+    if not line:
+        return False
+    line_str = ""
+    log_level = ""
+    if line[0] == "{":
+        json_data = json.loads(line)
+        json_data = flatten_dict(json_data)
+        log_level = json_data.pop("level")
+        log_col = cols[log_level] if log_level in cols else Fore.CYAN
+        log_level = style(log_level.upper(), log_col)
+        if not args.show_meta:
+            meta_keys = [k for k in json_data if 'meta' in k]
+            for k in meta_keys:
+                json_data.pop(k)
+        json_str = " ".join(["{}: {}".format(style(k, cols["k"]), style(
+            v, cols["v"])) for k, v in json_data.items()])
+        if contains_html(line):
+            html_error = json_data["error_body"]
+            write_html(html_error)
+            return False
+    else:
+        json_str = line
+    line_str += log_level + ": " + json_str
+
+    # Filters and highlights
+    if args.filter and any([filter_word in line for filter_word in args.filter]):
+        return False
+    found_highlight = False
+    if args.highlight:
+        for highlight_word in args.highlight:
+            if highlight_word in line:
+                found_highlight = True
+                line_str = line_str.replace(highlight_word, style(highlight_word, cols["h"]))
+
+    # Main Print
+    print(line_str)
+
+    # Suspend loop
+    if not args.no_suspend and found_highlight:
+        alert("Type: [' '|'c'|'n'] to go to next highlight or ['s'|'stop'] to stop suspending")
+        suspend_input = ""
+        while True:
+            if any([x == suspend_input for x in stop_suspend]):
+                args.no_suspend = True
+                break
+            if any([x == suspend_input for x in continue_strings]):
+                break
+            suspend_input = input()
+            suspend_input = suspend_input.lower()
+
+
+def print_loop(log_file, log_size_threshold):
+    # alert("Starting print_loop, log_file: " + log_file)
+    log_path = Path(log_file)
+    log_size = 0
+    f = subprocess.Popen(['tail', '-F', log_file],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = select.poll()
+    p.register(f.stdout)
+    check_size_after_secs = 5
+    start_time = time.time()
+    while True:
+        if p.poll(1):
+            line = f.stdout.readline()
+            will_exit = line_loop(line.decode())
+            if will_exit:
+                return
+        else:
+            curr_time = time.time()
+            if (curr_time - start_time) > check_size_after_secs:
+                log_size = log_path.stat().st_size
+                if log_size > log_size_threshold:
+                    return
+
+
+>>>>>>> 6e7063f1aeeea15d8adb4d47b87df4dba9e8b5cf
 def main_loop():
     log_size_threshold_1mb = 1000000
     log_files = list(
