@@ -1,0 +1,1 @@
+{"meta":{"name":"signage","box_guid":"","mac_address":"d0:63:b4:00:94:b2","pid":1118,"time_logged":"2022-03-14T04:12:20.261Z"},"payload":{"path":"/root/media/splash.png","room_name":"dm3_abandoned_base_staging_imx","message":"Soft restarting...","network_status":"","room_code":"","icon":"","qr_code_message":"","base64_qr_code":""},"level":"info","message":"startSplash"}
