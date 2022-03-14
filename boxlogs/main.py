@@ -27,7 +27,7 @@ cols = {
     "k": Fore.CYAN,
     "v": Fore.WHITE,
     "h": Back.GREEN + Fore.BLACK,
-    "alert": Back.WHITE + Fore.BLACK
+    "alert": Back.RED + Fore.WHITE
 }
 
 
@@ -66,11 +66,16 @@ def write_html(html_error):
         with open(html_file_name, "w") as f:
             f.write(html_error)
 
+def style(val, color=None):
+    val = color + str(val) + Style.RESET_ALL
+    return val
 
 def alert(some_str):
     print()
     print()
     print(style(some_str, cols["alert"]))
+    print()
+    print()
 
 
 def flatten(some_list):
@@ -126,9 +131,7 @@ if args.clear:
 init(autoreset=True)
 
 
-def style(val, color=None):
-    val = color + str(val) + Style.RESET_ALL
-    return val
+
 
 
 logdir = "/data/logs/"
@@ -139,6 +142,10 @@ logs = [os.path.join(logdir, x) for x in os.listdir(logdir)]
 
 
 def main_loop():
+    global CURR_LINE
+    global PREV_LINE
+    if PREV_LINE:
+        alert("Will resume from previous state. Specify -n to start fresh")
     start_logging = False
     start_logging_limit = 10000
     count = 0
