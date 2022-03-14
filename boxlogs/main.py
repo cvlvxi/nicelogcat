@@ -27,12 +27,13 @@ cols = {
     "k": Fore.CYAN,
     "v": Fore.WHITE,
     "h": Back.GREEN + Fore.BLACK,
-    "alert": Back.RED + Fore.WHITE
+    "alert": Back.BLACK + Fore.WHITE
 }
 
 
 assert tmp_dir.exists()
 tmp_dir = str(tmp_dir)
+
 
 def init_remove_files():
     print("Removing files")
@@ -55,7 +56,8 @@ def write_html(html_error):
 
     # Extract common elements
     title = str(soup.title)
-    container = str(soup.find(id='container').find_all("div", {"class": "line"}))
+    container = str(soup.find(id='container').find_all(
+        "div", {"class": "line"}))
     encoded_str = (title+container).encode()
     html_hash = hashlib.md5(encoded_str).hexdigest()
     short_hash = str(html_hash[0:5])
@@ -63,13 +65,15 @@ def write_html(html_error):
 
     if html_hash not in html_errors:
         html_errors[html_hash] = html_error
-        html_file_name = str(html_error_file) + "." + short_hash  + ".html"
+        html_file_name = str(html_error_file) + "." + short_hash + ".html"
         with open(html_file_name, "w") as f:
             f.write(html_error)
+
 
 def style(val, color=None):
     val = color + str(val) + Style.RESET_ALL
     return val
+
 
 def alert(some_str):
     print()
@@ -116,6 +120,7 @@ if args.filter:
     args.filter = flatten(args.filter)
 if args.highlight:
     args.highlight = flatten(args.highlight)
+    alert("Will find these items:" + str(args.highlight))
 if curr_line_file.exists():
     if args.new and curr_line_file.exists():
         os.remove(str(curr_line_file))
@@ -130,9 +135,6 @@ if args.clear:
     sys.exit(1)
 
 init(autoreset=True)
-
-
-
 
 
 logdir = "/data/logs/"
@@ -159,6 +161,7 @@ def main_loop():
         if count >= start_logging_limit:
             start_logging = True
         if not start_logging:
+            print(count)
             continue
         now = datetime.now()
         line = line.strip()
