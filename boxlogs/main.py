@@ -32,14 +32,15 @@ cols = {
 
 
 assert tmp_dir.exists()
+tmp_dir = str(tmp_dir)
 
 def init_remove_files():
     print("Removing files")
     for f in os.listdir(logs_dir):
-        os.remove(f)
+        os.remove(os.path.join(logs_dir, f))
     for f in os.listdir(str(tmp_dir)):
         if ".html" in f:
-            os.remove(f)
+            os.remove(os.path.join(tmp_dir, f))
 
 
 def contains_html(line):
