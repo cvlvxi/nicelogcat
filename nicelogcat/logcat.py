@@ -186,8 +186,9 @@ async def main_loop(args: Args, stream: BinaryIO) -> Output:
 
             prefix = utils.norm_str3(parts[log_level_idx + 1]).strip()
             msg = utils.norm_str3(" ".join(parts[log_level_idx + 2:]))
-            if _args.line.no_secs:
-                timestamp = timestamp.rsplit(".", 1)[0]
+            # if _args.line.no_secs:
+            #     timestamp = timestamp.rsplit(".", 1)[0]
+            timestamp = timestamp.rsplit(".", 1)[0]
             if _args.line.no_date:
                 log_time = f"{timestamp}"
             else:
