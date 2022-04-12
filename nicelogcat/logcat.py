@@ -6,7 +6,7 @@ from colorama import init, Fore, Back
 from colorama.ansi import AnsiCodes
 from pynput import keyboard
 from traceback import print_exc
-from typing import Tuple, Optional, BinaryIO
+from typing import Tuple, Optional, BinaryIO, List
 
 
 from nicelogcat.arguments import (
@@ -243,11 +243,11 @@ def nice_print(
     force_disable_print: bool,
     is_recording: bool,
 ) -> Tuple[Optional[str], bool]:
+    ignore_keys = ["box_guid", "pid", "mac_address" ]
     h: Headers = headers
     nested_spacer = " "
     top_spacer = " "
     readable_time = ""
-
     readable_time = None
 
     def get_date(t, strf, readable_time) -> datetime:
@@ -270,7 +270,7 @@ def nice_print(
     if readable_time:
         new_datetime = datetime(
             year=datetime.now().year,
-            month=readable_time.day or 0,
+            month=readable_time.month or 0,
             day=readable_time.day or 0,
             hour=readable_time.hour or 0,
             minute=readable_time.minute or 0,
@@ -368,6 +368,7 @@ def nice_print(
                 key_color=key_color,
                 value_color=value_color,
                 args=args,
+                ignore_keys=ignore_keys
             )
             key_count = new_key_count
             string_list.append("{}:{}{}".format(
@@ -389,6 +390,7 @@ def nice_print(
                 key_color=key_color,
                 value_color=value_color,
                 args=args,
+                ignore_keys=ignore_keys
             )
             key_count = new_key_count
             if nested_d:
@@ -538,17 +540,20 @@ def nice_print_dict(
     some_dict: dict,
     key_color: AnsiCodes,
     value_color: AnsiCodes,
-    args: Args
+    args: Args,
+    ignore_keys: List[str]
 ) -> Tuple[int, str]:
     nice_str = ""
     nice_strings = []
 
     spacer = args.layout.spacer
     for k, v in some_dict.items():
+        if k in ignore_keys:
+            continue
         if isinstance(v, dict):
             (new_key_count,
              nice_str) = nice_print_dict(key_count, top_spacer, v, key_color,
-                                         value_color, args)
+                                         value_color, args, ignore_keys)
 
             nice_strings.append(nice_str)
             key_count = new_key_count
