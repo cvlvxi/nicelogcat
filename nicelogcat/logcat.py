@@ -164,7 +164,10 @@ async def main_loop(args: Args, stream: BinaryIO) -> Output:
             if parts[0] == "---------":
                 continue
             date = utils.norm_str3(parts[0])
-            timestamp = utils.norm_str3(parts[1])
+            try:
+                timestamp = utils.norm_str3(parts[1])
+            except:
+                breakpoint()
 
             # Find loglevel index
             levels = [
