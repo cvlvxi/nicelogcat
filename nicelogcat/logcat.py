@@ -21,6 +21,8 @@ import nicelogcat.utils as utils
 
 init(autoreset=True)
 
+LOG_COLOR=Fore.CYAN
+
 ########################################################
 # Globals
 ########################################################
@@ -206,7 +208,7 @@ async def main_loop(args: Args, stream: BinaryIO, ip: Optional[str] = None) -> O
                 log_time=ValueColor(value=log_time, color=_args.color.time),
             )
             if ip:
-                headers.ip = ValueColor(value=ip, color=Fore.WHITE)
+                headers.ip = ValueColor(value=ip, color=LOG_COLOR)
 
             output: Output = nice_print(
                 _args,
