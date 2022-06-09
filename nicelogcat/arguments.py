@@ -16,7 +16,7 @@ from jsonargparse import (
     SUPPRESS,
     DefaultHelpFormatter
 )
-from typing import List, TypeVar, Dict, Tuple, Union
+from typing import List, TypeVar, Dict, Tuple, Union, Optional
 
 from nicelogcat.utils import (
     r_merge_dicts,
@@ -705,9 +705,26 @@ class NiceLogCatArgs:
                     pass
 
     @staticmethod
-    def get_arguments() -> Args:
+    def find_arg_in_argv(flags: List[str]) -> Optional[str]:
+        if isinstance(flags, str):
+            flags = [flags]
+        val = None
+        for flag in flags:
+            try:
+                flag_idx = sys.argv.index(flag)
+                val = sys.argv[flag_idx+1]
+                sys.argv.remove(flag)
+                sys.argv.remove(val)
+            except:
+                pass 
+        return val
+        
+
+    @staticmethod
+    def get_arguments() -> Tuple[Args, Optional[str]]:
         flags = []
 
+        ip = NiceLogCatArgs.find_arg_in_argv("--ip")
         # Custom Parser for shorthand
         custom_parser = NiceLogCatArgs.custom_parser()
         # Add flags to pop
@@ -755,4 +772,4 @@ class NiceLogCatArgs:
             cls_type = arg_field.type
             main_args[arg_type] = cls_type()
         main_args: Args = Args(**main_args)
-        return main_args
+        return main_args, ip

@@ -17,12 +17,12 @@ from nicelogcat.utils import style
 
 
 async def prepare():
-    args: Args = NiceLogCatArgs.get_arguments()
+    args, ip  = NiceLogCatArgs.get_arguments()
     console = Console()
     if not args.record.off:
         with keyboard.Listener(on_press=on_press) as listener:
             try:
-                async for out in main_loop(args, stream=sys.stdin.buffer.raw):
+                async for out in main_loop(args, stream=sys.stdin.buffer.raw, ip=ip):
                     out: Output
                     if not args.stacktrace.off:
                         stack_trace = out.stacktrace.strip()

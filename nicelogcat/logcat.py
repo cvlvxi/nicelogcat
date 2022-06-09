@@ -110,6 +110,7 @@ class Headers:
     prefix: ValueColor
     log_level: ValueColor
     log_time: ValueColor
+    ip: Optional[ValueColor] = None
 
     def length(self, delimiter: str = " ", raw: bool = False) -> int:
         return len(self.to_string(delimiter=delimiter, raw=raw))
@@ -123,14 +124,17 @@ class Headers:
             self.prefix.value
 
     def to_string(self, delimiter: str = " ", raw: bool = False) -> str:
-        return delimiter.join([
+        items = [
             self.log_time.value if raw else utils.style(
                 self.log_time.value, self.log_time.color),
             self.log_level.value if raw else utils.style(
                 self.log_level.value, self.log_level.color),
             self.prefix.value
             if raw else utils.style(self.prefix.value, self.prefix.color),
-        ])
+        ]
+        if self.ip:
+            items = [utils.style(self.ip.value, self.ip.color)] + items
+        return delimiter.join(items)
 
     @property
     def keys(self):
@@ -141,7 +145,7 @@ class Headers:
 # Main Loop
 ########################################################
 
-async def main_loop(args: Args, stream: BinaryIO) -> Output:
+async def main_loop(args: Args, stream: BinaryIO, ip: Optional[str] = None) -> Output:
     global _args
     global IS_RECORDING
     global TITLE
@@ -197,11 +201,12 @@ async def main_loop(args: Args, stream: BinaryIO) -> Output:
             else:
                 log_time = f"[{date}] {timestamp}"
             headers = Headers(
-                prefix=ValueColor(value=prefix,
-                                  color=_args.color.prefix),
+                prefix=ValueColor(value=prefix, color=_args.color.prefix),
                 log_level=ValueColor(value=log_level, color=log_level_color),
-                log_time=ValueColor(value=log_time,
-                                    color=_args.color.time))
+                log_time=ValueColor(value=log_time, color=_args.color.time),
+            )
+            if ip:
+                headers.ip = ValueColor(value=ip, color=Fore.WHITE)
 
             output: Output = nice_print(
                 _args,
