@@ -14,7 +14,8 @@ from nicelogcat.arguments import (
     Args,
     ColorArgs,
     FilterArgs,
-    StacktraceArgs
+    StacktraceArgs,
+    ExtraArgs
 )
 
 import nicelogcat.utils as utils
@@ -32,7 +33,7 @@ INIT_NOT_RECORDING_STATE: bool = False
 TITLE = "all"
 RECORD_DIR = os.curdir
 
-KEY_RECORD = keyboard.Key.f12
+KEY_RECORD = keyboard.Key.f14
 KEY_SHOW_ARGS = keyboard.Key.f11
 
 
@@ -147,7 +148,7 @@ class Headers:
 # Main Loop
 ########################################################
 
-async def main_loop(args: Args, stream: BinaryIO, ip: Optional[str] = None) -> Output:
+async def main_loop(args: Args, stream: BinaryIO, extra_args: ExtraArgs) -> Output:
     global _args
     global IS_RECORDING
     global TITLE
@@ -158,6 +159,8 @@ async def main_loop(args: Args, stream: BinaryIO, ip: Optional[str] = None) -> O
         if _args.line.title else ""
     RECORD_DIR = _args.record.dir if os.path.exists(
         _args.record.dir) else os.curdir
+
+    ip = extra_args.ip
 
     try:
         while True:

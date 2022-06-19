@@ -16,6 +16,7 @@ from jsonargparse import (
     SUPPRESS,
     DefaultHelpFormatter
 )
+import traceback
 from typing import List, TypeVar, Dict, Tuple, Union, Optional
 
 from nicelogcat.utils import (
@@ -653,6 +654,33 @@ class Args:
             sys.exit(1)
 
 
+class ExtraArgs:
+    ip: Optional[str] = None
+    from_log: Optional[str] = None
+
+    def find_arg_in_argv(self, field: str, flags: List[str] | str):
+        if isinstance(flags, str):
+            flags = [flags]
+        final_val = None
+        vals = []
+        for flag in flags:
+            if flag in sys.argv:
+                try:
+                    flag_idx = sys.argv.index(flag)
+                    for item in sys.argv[flag_idx+1:]:
+                        if item.startswith('-'):
+                            break
+                        vals.append(item)
+                    sys.argv.remove(flag)
+                    final_val = " ".join(vals)
+                    for val in vals:
+                        sys.argv.remove(val)
+                except Exception as e:
+                    print(traceback.format_exc())
+                    pass 
+        if final_val:
+            self.__setattr__(field, final_val)
+
 class NiceLogCatArgs:
 
     @staticmethod
@@ -704,27 +732,16 @@ class NiceLogCatArgs:
                 except:
                     pass
 
-    @staticmethod
-    def find_arg_in_argv(flags: List[str]) -> Optional[str]:
-        if isinstance(flags, str):
-            flags = [flags]
-        val = None
-        for flag in flags:
-            try:
-                flag_idx = sys.argv.index(flag)
-                val = sys.argv[flag_idx+1]
-                sys.argv.remove(flag)
-                sys.argv.remove(val)
-            except:
-                pass 
-        return val
+
         
 
     @staticmethod
     def get_arguments() -> Tuple[Args, Optional[str]]:
         flags = []
+        extra_args = ExtraArgs()
+        extra_args.find_arg_in_argv("ip", "--ip")
+        extra_args.find_arg_in_argv("from_log", "--from")
 
-        ip = NiceLogCatArgs.find_arg_in_argv("--ip")
         # Custom Parser for shorthand
         custom_parser = NiceLogCatArgs.custom_parser()
         # Add flags to pop
@@ -772,4 +789,4 @@ class NiceLogCatArgs:
             cls_type = arg_field.type
             main_args[arg_type] = cls_type()
         main_args: Args = Args(**main_args)
-        return main_args, ip
+        return main_args, extra_args
