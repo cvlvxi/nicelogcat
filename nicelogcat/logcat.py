@@ -22,7 +22,7 @@ import nicelogcat.utils as utils
 
 init(autoreset=True)
 
-LOG_COLOR=Fore.CYAN
+IP_COLOR=Fore.RED
 
 ########################################################
 # Globals
@@ -148,7 +148,7 @@ class Headers:
 # Main Loop
 ########################################################
 
-async def main_loop(args: Args, stream: BinaryIO, extra_args: ExtraArgs) -> Output:
+def main_loop(args: Args, line: str, extra_args: ExtraArgs) -> Optional[Output]:
     global _args
     global IS_RECORDING
     global TITLE
@@ -163,82 +163,78 @@ async def main_loop(args: Args, stream: BinaryIO, extra_args: ExtraArgs) -> Outp
     ip = extra_args.ip
 
     try:
-        while True:
-            line = next(stream)
-            line = line.decode(errors="ignore")
-            line = line.strip()
-            if not line:
-                continue
-            parts = [x for x in line.split(" ") if x]
-            if parts[0] == "---------":
-                continue
-            date = utils.norm_str3(parts[0])
-            try:
-                timestamp = utils.norm_str3(parts[1])
-            except:
-                breakpoint()
+        if not line:
+            return None
+        parts = [x for x in line.split(" ") if x]
+        if parts[0] == "---------":
+            return None
+        date = utils.norm_str3(parts[0])
+        try:
+            timestamp = utils.norm_str3(parts[1])
+        except:
+            pass
 
-            # Find loglevel index
-            levels = [
-                level for level in utils.LOG_LEVEL_CHOICES.keys()
-                if len(level) == 1
-            ]
-            log_level_idx = [
-                idx for idx, val in enumerate(parts)
-                if len(val.strip()) == 1 and val.strip().lower() in levels
-            ]
-            if not log_level_idx:
-                continue
-            log_level_idx = log_level_idx[0]
-            (log_level_color, log_level, max_log_width) = \
-                ColorArgs.get_log_level(
-                utils.norm_str3(parts[log_level_idx]), _args.color)
-            if len(log_level) < max_log_width:
-                log_level += " " * (max_log_width - len(log_level))
+        # Find loglevel index
+        levels = [
+            level for level in utils.LOG_LEVEL_CHOICES.keys()
+            if len(level) == 1
+        ]
+        log_level_idx = [
+            idx for idx, val in enumerate(parts)
+            if len(val.strip()) == 1 and val.strip().lower() in levels
+        ]
+        if not log_level_idx:
+            return None
+        log_level_idx = log_level_idx[0]
+        (log_level_color, log_level, max_log_width) = \
+            ColorArgs.get_log_level(
+            utils.norm_str3(parts[log_level_idx]), _args.color)
+        if len(log_level) < max_log_width:
+            log_level += " " * (max_log_width - len(log_level))
 
-            prefix = utils.norm_str3(parts[log_level_idx + 1]).strip()
-            msg = utils.norm_str3(" ".join(parts[log_level_idx + 2:]))
-            # if _args.line.no_secs:
-            #     timestamp = timestamp.rsplit(".", 1)[0]
-            timestamp = timestamp.rsplit(".", 1)[0]
-            if _args.line.no_date:
-                log_time = f"{timestamp}"
-            else:
-                log_time = f"[{date}] {timestamp}"
-            headers = Headers(
-                prefix=ValueColor(value=prefix, color=_args.color.prefix),
-                log_level=ValueColor(value=log_level, color=log_level_color),
-                log_time=ValueColor(value=log_time, color=_args.color.time),
-            )
-            if ip:
-                headers.ip = ValueColor(value=ip, color=LOG_COLOR)
+        prefix = utils.norm_str3(parts[log_level_idx + 1]).strip()
+        msg = utils.norm_str3(" ".join(parts[log_level_idx + 2:]))
+        # if _args.line.no_secs:
+        #     timestamp = timestamp.rsplit(".", 1)[0]
+        timestamp = timestamp.rsplit(".", 1)[0]
+        if _args.line.no_date:
+            log_time = f"{timestamp}"
+        else:
+            log_time = f"[{date}] {timestamp}"
+        headers = Headers(
+            prefix=ValueColor(value=prefix, color=_args.color.prefix),
+            log_level=ValueColor(value=log_level, color=log_level_color),
+            log_time=ValueColor(value=log_time, color=_args.color.time),
+        )
+        if ip:
+            headers.ip = ValueColor(value=ip, color=IP_COLOR)
 
-            output: Output = nice_print(
-                _args,
-                headers,
-                utils.nested_dicts({"message": msg}),
-                rawline=line,
-                force_disable_print=_args.line.off,
-                is_recording=IS_RECORDING
-            )
-            if output == Output.default():
-                continue
-            if _args.line.off:
-                output.output = ""
+        output: Output = nice_print(
+            _args,
+            headers,
+            utils.nested_dicts({"message": msg}),
+            rawline=line,
+            force_disable_print=_args.line.off,
+            is_recording=IS_RECORDING
+        )
+        if output == Output.default():
+            return None
+        if _args.line.off:
+            output.output = ""
 
-            if not _args.record.off and IS_RECORDING:
-                record_file_path = os.path.join(RECORD_DIR,
-                                                RECORD_FILE_NAME)
-                write_to_file = True
-                if _args.record.key_diff:
-                    write_to_file = output.change_detected
-                with open(record_file_path, "a") as f:
-                    if write_to_file:
-                        if output.output:
-                            f.write(f"{headers.to_string()} {output.output}")
-                        if output.stacktrace:
-                            f.write(f"{output.stacktrace}")
-            yield output
+        if not _args.record.off and IS_RECORDING:
+            record_file_path = os.path.join(RECORD_DIR,
+                                            RECORD_FILE_NAME)
+            write_to_file = True
+            if _args.record.key_diff:
+                write_to_file = output.change_detected
+            with open(record_file_path, "a") as f:
+                if write_to_file:
+                    if output.output:
+                        f.write(f"{headers.to_string()} {output.output}")
+                    if output.stacktrace:
+                        f.write(f"{output.stacktrace}")
+        return output
 
     except StopIteration:
         pass
@@ -522,11 +518,11 @@ def nice_print(
 
     divider_str = args.layout.divider + "\n" if args.layout.divider else ""
 
-    if not args.record.off:
-        if is_recording:
-            header_line_str = "🟢" + " " + header_line_str
-        else:
-            header_line_str = "🔴" + " " + header_line_str
+    # if not args.record.off:
+    #     if is_recording:
+    #         header_line_str = "🟢" + " " + header_line_str
+    #     else:
+    #         header_line_str = "🔴" + " " + header_line_str
 
     header_output = divider_str
     header_output += header_line_str

@@ -205,6 +205,9 @@ def style(val: str, color=None):
         val = color + new_val + Style.RESET_ALL
     return val
 
+def pstyle(msg: str, color) -> str:
+    return print(style(msg, color))
+
 
 def nested_dicts(some_dict: dict, level: int = 0):
     new_dict = {}
