@@ -216,9 +216,9 @@ class HighlightArgs:
     @staticmethod
     def add_argparse_arguments(parser: ArgumentParser) -> List[Union[BoolArg, NonBoolArg]]:
         flags = [
-            NonBoolArg("--h", "highlight.phrases", is_list=True,
+            NonBoolArg("--bleh", "highlight.phrases", is_list=True,
                        help="Highlight these phrases"),
-            NonBoolArg('--hp', 'highlight.prefixes', is_list=True,
+            NonBoolArg('--bleh2', 'highlight.prefixes', is_list=True,
                        help="Highlight these prefixes")
         ]
         for flag in flags:
@@ -732,11 +732,9 @@ class NiceLogCatArgs:
                 except:
                     pass
 
-
-        
-
     @staticmethod
     def get_arguments() -> Tuple[Args, Optional[str]]:
+        print(sys.argv)
         flags = []
         extra_args = ExtraArgs()
         extra_args.find_arg_in_argv("ip", "--ip")
