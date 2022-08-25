@@ -1,3 +1,0 @@
-sh
-colorama
-beautifulsoup4
