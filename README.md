@@ -5,6 +5,11 @@ requires:
 install:
 
 ```
+# on mac
+brew install fzf
+# on windows
+scoop install fzf
+
 pip install -r requirements.txt
 ```
 
